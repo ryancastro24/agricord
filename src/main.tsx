@@ -13,20 +13,34 @@ import Inventory, {
   loader as InventoryLoader,
 } from "./dashboardpages/Inventory";
 import Transactions from "./dashboardpages/Transactions";
-
+import ProtectedRoute from "./components/ui/ProtectedRoutes";
+import PublicRoute from "./components/PublicRoutes";
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <LoginPage />,
+    element: (
+      <PublicRoute>
+        <LoginPage />
+      </PublicRoute>
+    ),
   },
 
   {
     path: "/dashboard",
-    element: <Dashboard />,
+    element: (
+      <ProtectedRoute>
+        <Dashboard />
+      </ProtectedRoute>
+    ),
     children: [
       {
         path: "scanner",
-        element: <ScanFarmer />,
+        element: (
+          <ProtectedRoute>
+            {" "}
+            <ScanFarmer />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "scanner/:farmerId",
