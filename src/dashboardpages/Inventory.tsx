@@ -3,6 +3,7 @@ import { useLoaderData } from "react-router-dom";
 import supabase from "@/db/config";
 import EditFarmerData from "@/dashboardComponents/EditFarmerData";
 import AddItemsDialog from "@/dashboardComponents/AddItemsDialog";
+import ItemReturnsDialog from "@/dashboardComponents/ItemReturnsDialog";
 import {
   Table,
   TableBody,
@@ -32,16 +33,38 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import DeleteItemDialog from "@/dashboardComponents/DeleteItemDialog";
+
 export async function loader() {
-  const { data, error } = await supabase.from("items").select("*");
+  try {
+    const [items, item_returns] = await Promise.all([
+      supabase.from("items").select("*"),
+      supabase.from("item_returns").select(`
+    id,
+    reason,
+    quantity,
+    created_at,
+    status,
+    farmers:farmer_id ( firstname, lastname ),
+    clusters:cluster_id ( cluster_name ),
+    items:item_id ( name,id )
+  `),
+    ]);
 
-  if (error) {
-    console.error("Could not fetch the data:", error);
-    return { items: [], error: "Could not fetch the data" };
+    console.log(item_returns);
+
+    return {
+      items: items.data || [],
+      item_returns: item_returns.data || [],
+      error: items.error || item_returns.error || null,
+    };
+  } catch (err) {
+    console.error("Unexpected error:", err);
+    return {
+      items: [],
+      items_return: [],
+      error: "Unexpected error",
+    };
   }
-
-  console.log("Fetched items data:", data);
-  return { items: data || [], error: null };
 }
 
 export default function Inventory() {
@@ -49,8 +72,9 @@ export default function Inventory() {
   const [openDeleteItemDialog, setOpenDeleteItemDialog] = useState(false);
   const [editFarmer, setEditFarmer] = useState(null);
   const [deleteItem, setdeleteItem] = useState(null);
-  const { items } = useLoaderData() as {
+  const { items, item_returns } = useLoaderData() as {
     items: any[];
+    item_returns: any[];
     error: string | null;
   };
 
@@ -117,6 +141,9 @@ export default function Inventory() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button size={"icon"} variant={"secondary"}>
+            <ItemReturnsDialog item_returns={item_returns} />
+          </Button>
           <PrintQRCodes items={items} />
           <AddItemsDialog />
         </div>

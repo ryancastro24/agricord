@@ -27,7 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-
+import { RiDeleteBinFill } from "react-icons/ri";
 import type { LoaderFunctionArgs } from "react-router-dom";
 
 // Supabase loader for farmer data
@@ -48,7 +48,32 @@ export async function loader({ params }: LoaderFunctionArgs) {
     return { farmer: null, error: "Could not fetch farmer" };
   }
 
-  return { farmer: data, error: null };
+  // ✅ Check if farmer already scanned today
+  if (data) {
+    const today = new Date().toISOString().split("T")[0]; // yyyy-mm-dd
+
+    const { data: attendance, error: attErr } = await supabase
+      .from("attendance")
+      .select("id, created_at")
+      .eq("farmer_id", data.id)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (!attErr && attendance && attendance.length > 0) {
+      const lastScanDate = new Date(attendance[0].created_at)
+        .toISOString()
+        .split("T")[0];
+      if (lastScanDate === today) {
+        return {
+          farmer: null,
+          alreadyScanned: true,
+          error: null,
+        };
+      }
+    }
+  }
+
+  return { farmer: data, alreadyScanned: false, error: null };
 }
 
 // Type for scanned item
@@ -72,6 +97,7 @@ const ScanFarmer = () => {
 
   const loaderData = useLoaderData() as {
     farmer: any | null;
+    alreadyScanned?: boolean;
     error: string | null;
   };
 
@@ -100,7 +126,6 @@ const ScanFarmer = () => {
   };
 
   // Fetch item details
-  // Fetch item details
   const fetchItem = async (barcode: string) => {
     const { data: item, error } = await supabase
       .from("items")
@@ -116,10 +141,9 @@ const ScanFarmer = () => {
 
     if (!item) {
       alert(`🚫 Item with barcode ${barcode} not found!`);
-      return; // 👈 Do not add to the scannedItems list
+      return;
     }
 
-    // ✅ Only add if found
     setScannedItems((prev) => [...prev, { ...item, quantity: 1 }]);
   };
 
@@ -130,65 +154,40 @@ const ScanFarmer = () => {
       return;
     }
 
-    const validItems = scannedItems.filter((i) => !i.notFound);
-    if (validItems.length === 0) {
-      alert("⚠️ No valid items to save!");
-      return;
-    }
-
     try {
-      // 1️⃣ Insert transaction rows
-      const rows = validItems.map((i) => ({
-        farmer_id: farmer.id,
-        item_id: i.id ?? i.barcode,
-        quantity: i.quantity ?? 1,
-      }));
+      const { data: farmerCluster, error: clusterError } = await supabase
+        .from("farmer_clusters")
+        .select("cluster_id")
+        .eq("farmer_id", farmer.id)
+        .single();
 
-      const { error: insertError } = await supabase
-        .from("transactions")
-        .insert(rows);
+      if (clusterError) throw clusterError;
+      if (!farmerCluster) {
+        alert("⚠️ Farmer is not linked to any cluster!");
+        return;
+      }
+
+      const { error: insertError } = await supabase.from("attendance").insert([
+        {
+          farmer_id: farmer.id,
+          cluster_id: farmerCluster.cluster_id,
+        },
+      ]);
 
       if (insertError) throw insertError;
 
-      // 2️⃣ Update stock in items table
-      for (const item of validItems) {
-        const qty = item.quantity ?? 1;
-        const itemId = item.id ?? item.barcode;
-
-        // fetch current stock
-        const { data: existingItem, error: fetchError } = await supabase
-          .from("items")
-          .select("quantity")
-          .eq("id", itemId)
-          .single();
-
-        if (fetchError) throw fetchError;
-
-        const newQuantity = (existingItem?.quantity ?? 0) - qty;
-
-        // update stock
-        const { error: updateError } = await supabase
-          .from("items")
-          .update({ quantity: newQuantity })
-          .eq("id", itemId);
-
-        if (updateError) throw updateError;
-      }
-
-      alert("✅ Transaction saved & stock updated!");
-      setScannedItems([]);
-      setIsGoodsDialogOpen(false);
+      alert("✅ Attendance saved successfully!");
     } catch (err: any) {
-      console.error("Error saving transaction:", err.message);
-      alert("❌ Failed to save transaction. Check console.");
+      console.error("Error saving attendance:", err.message);
+      alert("❌ Failed to save attendance. Check console.");
     }
   };
 
   return (
-    <div className="grid grid-cols-[350px_1fr] gap-4 p-4 h-screen">
+    <div className="flex flex-col md:grid md:grid-cols-[350px_1fr] gap-4 p-4 h-full md:h-screen">
       {/* Left side scanner */}
-      <div className="w-full h-full">
-        <div className="bg-slate-100 w-full h-[300px] rounded overflow-hidden">
+      <div className="w-full h-full md:h-full">
+        <div className="bg-slate-100 w-full h-[250px]  md:h-[300px] rounded overflow-hidden">
           {!isGoodsDialogOpen && (
             <Scanner
               onScan={(results) => {
@@ -205,8 +204,8 @@ const ScanFarmer = () => {
           )}
         </div>
 
-        {/* Manual Input / Fallback */}
-        <div className="grid w-full max-w-sm items-center mt-5 gap-3">
+        {/* Manual Input */}
+        <div className="grid w-full max-w-sm mt-5 gap-3">
           <Input
             type="text"
             id="farmerId"
@@ -224,9 +223,13 @@ const ScanFarmer = () => {
       </div>
 
       {/* Right side */}
-      <div className="w-full h-full flex flex-col gap-5 shadow-2xl p-4 shadow-[#00000045]">
-        {!farmer ? (
-          <div className="flex items-center justify-center h-full text-gray-500 text-lg text-center">
+      <div className="w-full md:h-full flex flex-col gap-5 shadow-2xl p-4 shadow-[#00000045]">
+        {loaderData?.alreadyScanned ? (
+          <div className="flex items-center justify-center h-[200px] md:h-full text-green-600 font-semibold text-lg text-center">
+            ✅ Farmer already scanned today!
+          </div>
+        ) : !farmer ? (
+          <div className="flex items-center justify-center h-[200px] md:h-full text-gray-500 text-lg text-center">
             {loaderData?.error
               ? "🚫 User does not exist. Try again!"
               : "📷 Scan QR code to view farmer data"}
@@ -234,44 +237,46 @@ const ScanFarmer = () => {
         ) : (
           <>
             {/* Farmer Profile */}
-            <div className="w-full flex gap-4">
-              <div className="bg-slate-100 w-[200px] h-[200px] rounded">
+            <div className="w-full flex flex-col md:flex-row gap-4">
+              <div className="bg-slate-100 w-full md:w-[200px] h-[200px] rounded">
                 <img
                   src={farmer.profile_picture}
-                  className="w-full h-full"
+                  className="w-full h-full object-cover rounded"
                   alt="profile"
                 />
               </div>
-              <div>
-                <div className="flex flex-col gap-2 mt-2">
-                  <span className="flex items-center gap-1 text-sm">
+              <div className="flex-1">
+                <div className="flex flex-col gap-2 mt-2 text-sm">
+                  <span className="flex items-center gap-1">
                     <HiOutlineUser /> <strong>Name: </strong>
                     {farmer.firstname} {farmer.lastname}
                   </span>
-                  <span className="flex items-center gap-1 text-sm">
+                  <span className="flex items-center gap-1">
                     <SlLocationPin /> <strong>Address: </strong>
                     {farmer.purok}, {farmer.barangay}, {farmer.city},{" "}
                     {farmer.province}
                   </span>
-                  <span className="flex items-center gap-1 text-sm">
+                  <span className="flex items-center gap-1">
                     <HiOutlineMail /> <strong>Email: </strong>
                     {farmer.email}
                   </span>
-                  <span className="flex items-center gap-1 text-sm">
+                  <span className="flex items-center gap-1">
                     <FiPhone /> <strong>Contact Number: </strong>
                     {farmer.contact_number}
                   </span>
 
                   {/* Goods Scanner Dialog */}
-                  <div>
+                  <div className="mt-3">
                     <Dialog
                       open={isGoodsDialogOpen}
                       onOpenChange={setIsGoodsDialogOpen}
                     >
                       <DialogTrigger asChild>
-                        <Button>Scan Goods Collected</Button>
+                        <Button className="w-full md:w-auto">
+                          Scan Goods Collected
+                        </Button>
                       </DialogTrigger>
-                      <DialogContent className="w-[90vw] h-[80vh] p-4">
+                      <DialogContent className="w-full md:w-[90vw] rounded-none md:rounded p-4">
                         <DialogHeader>
                           <DialogTitle>Scan Goods</DialogTitle>
                           <DialogDescription>
@@ -279,9 +284,9 @@ const ScanFarmer = () => {
                           </DialogDescription>
                         </DialogHeader>
 
-                        <div className="grid grid-cols-[300px_1fr] gap-4 h-full">
+                        <div className="flex flex-col md:grid md:grid-cols-[300px_1fr] gap-4 h-full">
                           {/* Left: Scanner */}
-                          <div className="bg-slate-100 w-[300px] h-[300px] rounded overflow-hidden">
+                          <div className="bg-slate-100 w-full h-[250px] md:h-[300px] rounded overflow-hidden">
                             <Scanner
                               onScan={handleGoodsScan}
                               allowMultiple={true}
@@ -301,7 +306,7 @@ const ScanFarmer = () => {
                                 {scannedItems.map((item, idx) => (
                                   <li
                                     key={idx}
-                                    className="flex items-center gap-3 border-b pb-2 last:border-b-0"
+                                    className="flex flex-col justify-between gap-3 border-b pb-2 last:border-b-0"
                                   >
                                     {item.notFound ? (
                                       <span className="text-red-500 text-sm">
@@ -310,58 +315,70 @@ const ScanFarmer = () => {
                                         found
                                       </span>
                                     ) : (
-                                      <>
-                                        {item.picture && (
-                                          <img
-                                            src={item.picture}
-                                            alt={item.name}
-                                            className="w-16 h-16 object-cover rounded border"
-                                          />
-                                        )}
-                                        <div className="flex flex-col flex-1">
-                                          <span className="font-semibold">
-                                            {item.name}
-                                          </span>
-                                          <span className="text-sm text-gray-600">
-                                            {item.description}
-                                          </span>
-                                          <span className="text-sm font-medium text-green-600">
-                                            ₱{item.price}
-                                          </span>
-                                          <span className="text-xs text-gray-400">
-                                            Barcode: {item.barcode}
-                                          </span>
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                          {item.picture && (
+                                            <img
+                                              src={item.picture}
+                                              alt={item.name}
+                                              className="w-18 h-18 object-cover rounded border"
+                                            />
+                                          )}
+                                          <div className="flex flex-col flex-1">
+                                            <span className="font-semibold">
+                                              {item.name}
+                                            </span>
+                                            <span className="text-xs text-gray-600">
+                                              {item.description}
+                                            </span>
+
+                                            <span className="text-xs text-gray-400">
+                                              Barcode: {item.barcode}
+                                            </span>
+                                          </div>
                                         </div>
 
-                                        <input
-                                          type="number"
-                                          min={1}
-                                          value={item.quantity || 1}
-                                          onChange={(e) => {
-                                            const qty =
-                                              parseInt(e.target.value) || 1;
-                                            setScannedItems((prev) =>
-                                              prev.map((p, i) =>
-                                                i === idx
-                                                  ? { ...p, quantity: qty }
-                                                  : p
-                                              )
-                                            );
-                                          }}
-                                          className="w-16 border rounded p-1 text-center"
-                                        />
+                                        <div className="flex flex-col items-center gap-2">
+                                          <input
+                                            type="number"
+                                            value={
+                                              item.quantity !== null &&
+                                              item.quantity !== undefined
+                                                ? item.quantity
+                                                : ""
+                                            }
+                                            onChange={(e) => {
+                                              const value = e.target.value;
+                                              const qty =
+                                                value === ""
+                                                  ? undefined
+                                                  : parseInt(value, 10);
 
-                                        <button
-                                          onClick={() =>
-                                            setScannedItems((prev) =>
-                                              prev.filter((_, i) => i !== idx)
-                                            )
-                                          }
-                                          className="ml-2 text-red-500 hover:text-red-700"
-                                        >
-                                          ❌
-                                        </button>
-                                      </>
+                                              setScannedItems((prev) =>
+                                                prev.map((p, i) =>
+                                                  i === idx
+                                                    ? { ...p, quantity: qty }
+                                                    : p
+                                                )
+                                              );
+                                            }}
+                                            className="w-10 border rounded p-1 text-center"
+                                          />
+
+                                          <Button
+                                            onClick={() =>
+                                              setScannedItems((prev) =>
+                                                prev.filter((_, i) => i !== idx)
+                                              )
+                                            }
+                                            variant={"destructive"}
+                                            size={"icon"}
+                                            className="rounded-sm"
+                                          >
+                                            <RiDeleteBinFill />
+                                          </Button>
+                                        </div>
+                                      </div>
                                     )}
                                   </li>
                                 ))}
@@ -372,9 +389,18 @@ const ScanFarmer = () => {
 
                         <DialogFooter>
                           <DialogClose asChild>
-                            <Button variant="outline">Close</Button>
+                            <Button
+                              variant="outline"
+                              className="w-full md:w-auto"
+                            >
+                              Close
+                            </Button>
                           </DialogClose>
-                          <Button type="button" onClick={saveTransaction}>
+                          <Button
+                            type="button"
+                            onClick={saveTransaction}
+                            className="w-full md:w-auto"
+                          >
                             Save Items
                           </Button>
                         </DialogFooter>
@@ -387,8 +413,8 @@ const ScanFarmer = () => {
 
             {/* Transactions placeholder */}
             <div className="flex flex-col gap-2">
-              <h2>Previous Transactions</h2>
-              <div className="w-full h-[200px] bg-slate-100">
+              <h2 className="font-semibold">Previous Transactions</h2>
+              <div className="w-full overflow-x-auto bg-slate-100 rounded-md">
                 <Table>
                   <TableCaption>A list of your recent invoices.</TableCaption>
                   <TableHeader>
@@ -405,7 +431,7 @@ const ScanFarmer = () => {
                       <TableCell className="text-right">
                         <Dialog>
                           <DialogTrigger asChild>
-                            <Button>View</Button>
+                            <Button size="sm">View</Button>
                           </DialogTrigger>
                           <DialogContent className="sm:max-w-[425px]">
                             <DialogHeader>

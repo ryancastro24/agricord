@@ -2,19 +2,23 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import LoginPage from "./pages/LoginPage";
-import Dashboard from "./pages/Dashboard";
+import Dashboard, { loader as DashboardLoader } from "./pages/Dashboard";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import ScanFarmer, {
   loader as ScanFarmerLoader,
 } from "./dashboardpages/ScanFarmer";
 import Farmers, { loader as FarmerLoader } from "./dashboardpages/Farmers";
-import Staffs from "./dashboardpages/Staffs";
+import Staffs, { loader as StaffsLoader } from "./dashboardpages/Staffs";
 import Inventory, {
   loader as InventoryLoader,
 } from "./dashboardpages/Inventory";
 import Transactions from "./dashboardpages/Transactions";
 import ProtectedRoute from "./components/ui/ProtectedRoutes";
 import PublicRoute from "./components/PublicRoutes";
+import Clusters, { loader as ClusterLoader } from "./dashboardpages/Clusters";
+import Chairmans from "./dashboardpages/Chairmans";
+import ClusterList from "./dashboardpages/ClusterList";
+import FarmerAttendance from "./dashboardpages/FarmerAttendance";
 const router = createBrowserRouter([
   {
     path: "/",
@@ -32,6 +36,7 @@ const router = createBrowserRouter([
         <Dashboard />
       </ProtectedRoute>
     ),
+    loader: DashboardLoader,
     children: [
       {
         path: "scanner",
@@ -55,6 +60,17 @@ const router = createBrowserRouter([
       {
         path: "staffs",
         element: <Staffs />,
+        loader: StaffsLoader,
+      },
+
+      {
+        path: "chairmans",
+        element: <Chairmans />,
+      },
+      {
+        path: "clusters",
+        element: <Clusters />,
+        loader: ClusterLoader,
       },
       {
         path: "inventory",
@@ -64,6 +80,15 @@ const router = createBrowserRouter([
       {
         path: "transactions",
         element: <Transactions />,
+      },
+
+      {
+        path: "farmer_attendance",
+        element: <FarmerAttendance />,
+      },
+      {
+        path: "cluster_list",
+        element: <ClusterList />,
       },
     ],
   },

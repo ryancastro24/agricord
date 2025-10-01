@@ -28,7 +28,6 @@ const AddFarmerDialog = () => {
     barangay: "",
     city: "",
     province: "",
-    email: "",
     contact_number: "",
     qrcode: "",
     id_number: "",
@@ -46,27 +45,10 @@ const AddFarmerDialog = () => {
   const handleAddFarmer = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const year = new Date().getFullYear();
-
-    const { data: lastFarmer } = await supabase
-      .from("farmers")
-      .select("id_number")
-      .like("id_number", `FRM-${year}-%`)
-      .order("id_number", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    let newSequence = 1;
-    if (lastFarmer && lastFarmer.id_number) {
-      const lastSeq = parseInt(lastFarmer.id_number.split("-")[2], 10);
-      newSequence = lastSeq + 1;
-    }
-
-    const newIdNumber = `FRM-${year}-${String(newSequence).padStart(4, "0")}`;
-
+    // ✅ Insert farmer first (using manually entered id_number)
     const { id, ...farmerData } = newFarmer;
 
-    const farmerToInsert = { ...farmerData, id_number: newIdNumber };
+    const farmerToInsert = { ...farmerData };
 
     const { data: insertedData, error: insertError } = await supabase
       .from("farmers")
@@ -92,7 +74,7 @@ const AddFarmerDialog = () => {
       }
       const imgBlob = new Blob([array], { type: "image/png" });
 
-      const filePath = `profile-pictures/farmer-${newIdNumber}.png`;
+      const filePath = `profile-pictures/farmer-${newFarmer.id_number}.png`;
 
       const { error: uploadError } = await supabase.storage
         .from("farmers-bucket")
@@ -115,8 +97,8 @@ const AddFarmerDialog = () => {
       }
     }
 
-    // ✅ Generate QR code
-    const qrContent = newIdNumber;
+    // ✅ Generate QR code using id_number
+    const qrContent = newFarmer.id_number;
     const qrDataUrl = await QRCode.toDataURL(qrContent);
 
     const base64 = qrDataUrl.split(",")[1];
@@ -127,7 +109,7 @@ const AddFarmerDialog = () => {
     }
     const qrBlob = new Blob([array], { type: "image/png" });
 
-    const filePath = `qrcodes/farmer-${newIdNumber}.png`;
+    const filePath = `qrcodes/farmer-${newFarmer.id_number}.png`;
     const { error: uploadError } = await supabase.storage
       .from("farmers-bucket")
       .upload(filePath, qrBlob, { upsert: true });
@@ -147,7 +129,6 @@ const AddFarmerDialog = () => {
 
     console.log("✅ Farmer added with QR + photo:", {
       ...insertedData,
-      id_number: newIdNumber,
       qrcode: qrUrl,
       profile_picture: profilePictureUrl,
     });
@@ -176,6 +157,20 @@ const AddFarmerDialog = () => {
             <TabsContent value="personaldata">
               <Card>
                 <CardContent className="grid gap-6">
+                  {/* id_number */}
+                  <div className="grid gap-3">
+                    <Label>ID Number</Label>
+                    <Input
+                      value={newFarmer.id_number}
+                      onChange={(e) =>
+                        setNewFarmer({
+                          ...newFarmer,
+                          id_number: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+
                   {/* firstname + lastname */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="grid gap-3">
@@ -203,30 +198,20 @@ const AddFarmerDialog = () => {
                       />
                     </div>
                   </div>
-                  {/* contact + email */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="grid gap-3">
-                      <Label>Contact Number</Label>
-                      <Input
-                        value={newFarmer.contact_number}
-                        onChange={(e) =>
-                          setNewFarmer({
-                            ...newFarmer,
-                            contact_number: e.target.value,
-                          })
-                        }
-                        type="number"
-                      />
-                    </div>
-                    <div className="grid gap-3">
-                      <Label>Email</Label>
-                      <Input
-                        value={newFarmer.email}
-                        onChange={(e) =>
-                          setNewFarmer({ ...newFarmer, email: e.target.value })
-                        }
-                      />
-                    </div>
+
+                  {/* contact */}
+                  <div className="grid gap-3">
+                    <Label>Contact Number</Label>
+                    <Input
+                      value={newFarmer.contact_number}
+                      onChange={(e) =>
+                        setNewFarmer({
+                          ...newFarmer,
+                          contact_number: e.target.value,
+                        })
+                      }
+                      type="number"
+                    />
                   </div>
                 </CardContent>
               </Card>

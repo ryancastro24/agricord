@@ -1,5 +1,8 @@
-import { useState, useEffect } from "react";
-import supabase from "@/db/config"; // adjust path
+import { useState, useRef, useCallback } from "react";
+import { useLoaderData } from "react-router-dom";
+import Webcam from "react-webcam";
+import { Camera } from "lucide-react";
+
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,72 +15,92 @@ import {
 } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { getUsers, createUser } from "@/backend/users";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 
-// Define staff type
+// Supabase user type (simplified)
 type Staff = {
   id: string;
   email: string;
-  full_name: string;
-  role: string;
-  status: string;
+  user_metadata: {
+    firstname?: string;
+    lastname?: string;
+    address?: string;
+    contact?: string;
+    role?: string;
+    profile_picture?: string;
+    is_active?: boolean;
+  };
 };
 
+export async function loader() {
+  const users = await getUsers();
+  return { users };
+}
+
 const Staffs = () => {
-  const [staffs, setStaffs] = useState<Staff[]>([]);
+  const { users } = useLoaderData() as { users: Staff[] };
+
   const [search, setSearch] = useState("");
   const [newStaff, setNewStaff] = useState({
     email: "",
     password: "",
-    full_name: "",
+    firstname: "",
+    lastname: "",
+    role: "staff",
+    contact: "",
+    address: "",
+    profile_picture: "",
   });
 
-  // Fetch staff list
-  const fetchStaffs = async () => {
-    const { data, error } = await supabase.from("staff").select("*");
-    if (error) console.error(error);
-    else setStaffs(data as Staff[]);
-  };
+  // camera state
+  const webcamRef = useRef<Webcam>(null);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
 
-  useEffect(() => {
-    fetchStaffs();
-  }, []);
+  const capture = useCallback(() => {
+    const imageSrc = webcamRef.current?.getScreenshot();
+    if (imageSrc) {
+      setNewStaff({ ...newStaff, profile_picture: imageSrc });
+      setIsCameraOpen(false);
+    }
+  }, [newStaff]);
 
-  // Create staff account (admin)
+  // Create staff account via createUser()
   const handleCreateStaff = async () => {
-    const response = await fetch("/api/createStaff", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(newStaff),
-    });
-
-    if (response.ok) {
-      setNewStaff({ email: "", password: "", full_name: "" });
-      fetchStaffs();
-    } else {
-      console.error("Failed to create staff");
+    try {
+      await createUser(newStaff); // axios POST helper
+      setNewStaff({
+        email: "",
+        password: "",
+        firstname: "",
+        lastname: "",
+        role: "staff",
+        contact: "",
+        address: "",
+        profile_picture: "",
+      });
+      window.location.reload();
+    } catch (error) {
+      console.error("Failed to create staff:", error);
     }
   };
 
-  // Update staff role/status
-  const handleUpdateStaff = async (id: string, updates: Partial<Staff>) => {
-    const { error } = await supabase.from("staff").update(updates).eq("id", id);
-    if (error) console.error(error);
-    else fetchStaffs();
-  };
-
-  // Delete staff
-  const handleDeleteStaff = async (id: string) => {
-    const { error } = await supabase.from("staff").delete().eq("id", id);
-    if (error) console.error(error);
-    else fetchStaffs();
-  };
-
   // Filtered staff list
-  const filteredStaffs = staffs.filter(
-    (s) =>
-      s.full_name.toLowerCase().includes(search.toLowerCase()) ||
+  const filteredStaffs = users.filter((s) => {
+    const fullname = `${s.user_metadata.firstname ?? ""} ${
+      s.user_metadata.lastname ?? ""
+    }`.trim();
+    return (
+      fullname.toLowerCase().includes(search.toLowerCase()) ||
       s.email.toLowerCase().includes(search.toLowerCase())
-  );
+    );
+  });
 
   return (
     <div className="p-6 space-y-6">
@@ -89,84 +112,228 @@ const Staffs = () => {
           className="w-1/3"
         />
 
+        {/* Add Staff Dialog */}
         <Dialog>
           <DialogTrigger asChild>
             <Button>Add Staff</Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-2xl">
             <div className="space-y-4">
-              <div>
-                <Label>Email</Label>
-                <Input
-                  type="email"
-                  value={newStaff.email}
-                  onChange={(e) =>
-                    setNewStaff({ ...newStaff, email: e.target.value })
-                  }
-                />
+              <h2 className="text-lg font-semibold mb-2">Add New Staff</h2>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <tbody>
+                    <tr className="border-b">
+                      <td className="p-2 w-1/3">
+                        <Label>Email</Label>
+                      </td>
+                      <td className="p-2">
+                        <Input
+                          type="email"
+                          value={newStaff.email}
+                          onChange={(e) =>
+                            setNewStaff({ ...newStaff, email: e.target.value })
+                          }
+                        />
+                      </td>
+                    </tr>
+                    <tr className="border-b">
+                      <td className="p-2">
+                        <Label>Password</Label>
+                      </td>
+                      <td className="p-2">
+                        <Input
+                          type="password"
+                          value={newStaff.password}
+                          onChange={(e) =>
+                            setNewStaff({
+                              ...newStaff,
+                              password: e.target.value,
+                            })
+                          }
+                        />
+                      </td>
+                    </tr>
+                    <tr className="border-b">
+                      <td className="p-2">
+                        <Label>First Name</Label>
+                      </td>
+                      <td className="p-2">
+                        <Input
+                          value={newStaff.firstname}
+                          onChange={(e) =>
+                            setNewStaff({
+                              ...newStaff,
+                              firstname: e.target.value,
+                            })
+                          }
+                        />
+                      </td>
+                    </tr>
+                    <tr className="border-b">
+                      <td className="p-2">
+                        <Label>Last Name</Label>
+                      </td>
+                      <td className="p-2">
+                        <Input
+                          value={newStaff.lastname}
+                          onChange={(e) =>
+                            setNewStaff({
+                              ...newStaff,
+                              lastname: e.target.value,
+                            })
+                          }
+                        />
+                      </td>
+                    </tr>
+                    <tr className="border-b">
+                      <td className="p-2">
+                        <Label>Role</Label>
+                      </td>
+                      <td className="p-2">
+                        <Select
+                          value={newStaff.role}
+                          onValueChange={(val) =>
+                            setNewStaff({ ...newStaff, role: val })
+                          }
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select role" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="staff">Staff</SelectItem>
+                            <SelectItem value="chairman">Chairman</SelectItem>
+                            <SelectItem value="admin">Admin</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </td>
+                    </tr>
+                    <tr className="border-b">
+                      <td className="p-2">
+                        <Label>Contact</Label>
+                      </td>
+                      <td className="p-2">
+                        <Input
+                          value={newStaff.contact}
+                          onChange={(e) =>
+                            setNewStaff({
+                              ...newStaff,
+                              contact: e.target.value,
+                            })
+                          }
+                        />
+                      </td>
+                    </tr>
+                    <tr className="border-b">
+                      <td className="p-2">
+                        <Label>Address</Label>
+                      </td>
+                      <td className="p-2">
+                        <Input
+                          value={newStaff.address}
+                          onChange={(e) =>
+                            setNewStaff({
+                              ...newStaff,
+                              address: e.target.value,
+                            })
+                          }
+                        />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="p-2">
+                        <Label>Profile Picture</Label>
+                      </td>
+                      <td className="p-2 flex items-center gap-3">
+                        <Dialog
+                          open={isCameraOpen}
+                          onOpenChange={setIsCameraOpen}
+                        >
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex items-center gap-2"
+                              onClick={() => setIsCameraOpen(true)}
+                            >
+                              <Camera className="w-4 h-4" />
+                              Take Picture
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-md flex flex-col items-center gap-4">
+                            <Webcam
+                              audio={false}
+                              ref={webcamRef}
+                              screenshotFormat="image/jpeg"
+                              className="rounded-md w-full aspect-video"
+                              videoConstraints={{
+                                facingMode: "user",
+                              }}
+                            />
+                            <Button className="w-full" onClick={capture}>
+                              Capture
+                            </Button>
+                          </DialogContent>
+                        </Dialog>
+
+                        {newStaff.profile_picture && (
+                          <img
+                            src={newStaff.profile_picture}
+                            alt="Preview"
+                            className="w-12 h-12 rounded-full object-cover border"
+                          />
+                        )}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
-              <div>
-                <Label>Password</Label>
-                <Input
-                  type="password"
-                  value={newStaff.password}
-                  onChange={(e) =>
-                    setNewStaff({ ...newStaff, password: e.target.value })
-                  }
-                />
+              <div className="pt-4">
+                <Button className="w-full" onClick={handleCreateStaff}>
+                  Create
+                </Button>
               </div>
-              <div>
-                <Label>Full Name</Label>
-                <Input
-                  value={newStaff.full_name}
-                  onChange={(e) =>
-                    setNewStaff({ ...newStaff, full_name: e.target.value })
-                  }
-                />
-              </div>
-              <Button onClick={handleCreateStaff}>Create</Button>
             </div>
           </DialogContent>
         </Dialog>
       </div>
 
+      {/* Staff List */}
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Full Name</TableHead>
             <TableHead>Email</TableHead>
+            <TableHead>Contact</TableHead>
+            <TableHead>Address</TableHead>
             <TableHead>Role</TableHead>
-            <TableHead>Status</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {filteredStaffs.map((staff) => (
-            <TableRow key={staff.id}>
-              <TableCell>{staff.full_name}</TableCell>
-              <TableCell>{staff.email}</TableCell>
-              <TableCell>{staff.role}</TableCell>
-              <TableCell>{staff.status}</TableCell>
-              <TableCell className="flex gap-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() =>
-                    handleUpdateStaff(staff.id, { role: "manager" })
-                  }
-                >
-                  Promote
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => handleDeleteStaff(staff.id)}
-                >
-                  Delete
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
+          {filteredStaffs.map((staff) => {
+            const fullname = `${staff.user_metadata.firstname ?? ""} ${
+              staff.user_metadata.lastname ?? ""
+            }`.trim();
+
+            return (
+              <TableRow key={staff.id}>
+                <TableCell>{fullname || "N/A"}</TableCell>
+                <TableCell>{staff.email}</TableCell>
+                <TableCell>{staff.user_metadata.contact ?? "N/A"}</TableCell>
+                <TableCell>{staff.user_metadata.address ?? "N/A"}</TableCell>
+                <TableCell>{staff.user_metadata.role ?? "N/A"}</TableCell>
+                <TableCell className="flex gap-2">
+                  <Button variant="secondary" size="sm">
+                    Promote
+                  </Button>
+                  <Button variant="destructive" size="sm">
+                    Delete
+                  </Button>
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>
