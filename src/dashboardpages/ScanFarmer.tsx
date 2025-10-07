@@ -2,9 +2,8 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Scanner } from "@yudiel/react-qr-scanner";
 import { SlLocationPin } from "react-icons/sl";
-import { HiOutlineMail } from "react-icons/hi";
+import { HiOutlineMail, HiOutlineUser } from "react-icons/hi";
 import { FiPhone } from "react-icons/fi";
-import { HiOutlineUser } from "react-icons/hi";
 import { Button } from "@/components/ui/button";
 import supabase from "@/db/config";
 import { useLoaderData, useNavigate } from "react-router-dom";
@@ -18,19 +17,45 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+// import {
+//   Table,
+//   TableBody,
+//   TableCaption,
+//   TableCell,
+//   TableHead,
+//   TableHeader,
+//   TableRow,
+// } from "@/components/ui/table";
 import { RiDeleteBinFill } from "react-icons/ri";
 import type { LoaderFunctionArgs } from "react-router-dom";
 
-// Supabase loader for farmer data
+// 🧠 Types
+type Farmer = {
+  id: string;
+  id_number: string;
+  firstname: string;
+  lastname: string;
+  email: string;
+  profile_picture?: string;
+  contact_number?: string;
+  purok?: string;
+  barangay?: string;
+  city?: string;
+  province?: string;
+};
+
+type ScannedItem = {
+  id: string;
+  barcode: string;
+  name?: string;
+  description?: string;
+  price?: number;
+  picture?: string;
+  notFound?: boolean;
+  quantity?: number;
+};
+
+// 🧾 Loader — fetch farmer by ID
 export async function loader({ params }: LoaderFunctionArgs) {
   const { farmerId } = params;
 
@@ -50,7 +75,7 @@ export async function loader({ params }: LoaderFunctionArgs) {
 
   // ✅ Check if farmer already scanned today
   if (data) {
-    const today = new Date().toISOString().split("T")[0]; // yyyy-mm-dd
+    const today = new Date().toISOString().split("T")[0];
 
     const { data: attendance, error: attErr } = await supabase
       .from("attendance")
@@ -76,18 +101,6 @@ export async function loader({ params }: LoaderFunctionArgs) {
   return { farmer: data, alreadyScanned: false, error: null };
 }
 
-// Type for scanned item
-type ScannedItem = {
-  id?: string;
-  barcode: string;
-  name?: string;
-  description?: string;
-  price?: number;
-  picture?: string;
-  notFound?: boolean;
-  quantity?: number;
-};
-
 const ScanFarmer = () => {
   const [scanResult, setScanResult] = useState<string>("");
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
@@ -96,36 +109,34 @@ const ScanFarmer = () => {
   const navigate = useNavigate();
 
   const loaderData = useLoaderData() as {
-    farmer: any | null;
+    farmer: Farmer | null;
     alreadyScanned?: boolean;
     error: string | null;
   };
 
   const farmer = loaderData?.farmer;
 
-  // Handle scanned goods inside dialog
+  // 🔍 Scan goods QR codes
   const handleGoodsScan = async (results: any) => {
     if (results && results.length > 0) {
       const value = results[0].rawValue;
 
-      // ✅ Ignore if it's the same code within 1 second
+      // Prevent duplicate scan in 1 second
       if (lastScanned === value) return;
       setLastScanned(value);
       setTimeout(() => setLastScanned(null), 1000);
 
       // Prevent duplicates
-      setScannedItems((prev) => {
-        if (prev.some((item) => item.barcode === value)) {
-          alert(`⚠️ Item with barcode ${value} already scanned!`);
-          return prev;
-        }
-        fetchItem(value);
-        return prev;
-      });
+      if (scannedItems.some((item) => item.barcode === value)) {
+        alert(`⚠️ Item with barcode ${value} already scanned!`);
+        return;
+      }
+
+      await fetchItem(value);
     }
   };
 
-  // Fetch item details
+  // 🔎 Fetch item by barcode
   const fetchItem = async (barcode: string) => {
     const { data: item, error } = await supabase
       .from("items")
@@ -147,14 +158,30 @@ const ScanFarmer = () => {
     setScannedItems((prev) => [...prev, { ...item, quantity: 1 }]);
   };
 
-  // Save transaction: flat style
+  // 💾 Save transactions
   const saveTransaction = async () => {
     if (!farmer) {
       alert("⚠️ No farmer selected!");
       return;
     }
 
+    if (scannedItems.length === 0) {
+      alert("⚠️ Please scan at least one item!");
+      return;
+    }
+
     try {
+      // 1️⃣ Get logged-in user
+      const { data: userData, error: userError } =
+        await supabase.auth.getUser();
+      if (userError || !userData?.user) {
+        alert("⚠️ Failed to identify logged-in user!");
+        console.error("User fetch error:", userError);
+        return;
+      }
+      const staff_id = userData.user.id;
+
+      // 2️⃣ Get farmer’s cluster
       const { data: farmerCluster, error: clusterError } = await supabase
         .from("farmer_clusters")
         .select("cluster_id")
@@ -167,27 +194,47 @@ const ScanFarmer = () => {
         return;
       }
 
-      const { error: insertError } = await supabase.from("attendance").insert([
-        {
-          farmer_id: farmer.id,
-          cluster_id: farmerCluster.cluster_id,
-        },
-      ]);
+      const cluster_id = farmerCluster.cluster_id;
 
-      if (insertError) throw insertError;
+      // 3️⃣ Prepare transactions
+      const transactions = scannedItems.map((item) => ({
+        farmer_id: farmer.id,
+        staff_id,
+        item_id: item.id,
+        quantity: item.quantity ?? 1,
+      }));
 
-      alert("✅ Attendance saved successfully!");
+      // 4️⃣ Save to transactions
+      const { error: transactionError } = await supabase
+        .from("transactions")
+        .insert(transactions);
+      if (transactionError) throw transactionError;
+
+      // 5️⃣ Record attendance
+      const { error: attendanceError } = await supabase
+        .from("attendance")
+        .insert([
+          {
+            farmer_id: farmer.id,
+            cluster_id,
+          },
+        ]);
+      if (attendanceError) throw attendanceError;
+
+      alert("✅ Transactions and attendance saved successfully!");
+      setScannedItems([]);
+      setIsGoodsDialogOpen(false);
     } catch (err: any) {
-      console.error("Error saving attendance:", err.message);
-      alert("❌ Failed to save attendance. Check console.");
+      console.error("❌ Error saving transactions:", err.message);
+      alert("❌ Failed to save transactions. Check console for details.");
     }
   };
 
   return (
     <div className="flex flex-col md:grid md:grid-cols-[350px_1fr] gap-4 p-4 h-full md:h-screen">
-      {/* Left side scanner */}
-      <div className="w-full h-full md:h-full">
-        <div className="bg-slate-100 w-full h-[250px]  md:h-[300px] rounded overflow-hidden">
+      {/* LEFT SIDE SCANNER */}
+      <div className="w-full h-full">
+        <div className="bg-slate-100 w-full h-[250px] md:h-[300px] rounded overflow-hidden">
           {!isGoodsDialogOpen && (
             <Scanner
               onScan={(results) => {
@@ -208,11 +255,10 @@ const ScanFarmer = () => {
         <div className="grid w-full max-w-sm mt-5 gap-3">
           <Input
             type="text"
-            id="farmerId"
             value={scanResult}
             onChange={(e) => setScanResult(e.target.value)}
             className="rounded-sm"
-            placeholder="Scan using ID"
+            placeholder="Scan or enter Farmer ID"
             onKeyDown={(e) => {
               if (e.key === "Enter" && scanResult) {
                 navigate(`/dashboard/scanner/${scanResult}`);
@@ -222,8 +268,8 @@ const ScanFarmer = () => {
         </div>
       </div>
 
-      {/* Right side */}
-      <div className="w-full md:h-full flex flex-col gap-5 shadow-2xl p-4 shadow-[#00000045]">
+      {/* RIGHT SIDE */}
+      <div className="w-full flex flex-col gap-5 shadow-2xl p-4 shadow-[#00000045]">
         {loaderData?.alreadyScanned ? (
           <div className="flex items-center justify-center h-[200px] md:h-full text-green-600 font-semibold text-lg text-center">
             ✅ Farmer already scanned today!
@@ -248,24 +294,22 @@ const ScanFarmer = () => {
               <div className="flex-1">
                 <div className="flex flex-col gap-2 mt-2 text-sm">
                   <span className="flex items-center gap-1">
-                    <HiOutlineUser /> <strong>Name: </strong>
-                    {farmer.firstname} {farmer.lastname}
+                    <HiOutlineUser /> <strong>Name:</strong> {farmer.firstname}{" "}
+                    {farmer.lastname}
                   </span>
                   <span className="flex items-center gap-1">
-                    <SlLocationPin /> <strong>Address: </strong>
-                    {farmer.purok}, {farmer.barangay}, {farmer.city},{" "}
-                    {farmer.province}
+                    <SlLocationPin /> <strong>Address:</strong> {farmer.purok},{" "}
+                    {farmer.barangay}, {farmer.city}, {farmer.province}
                   </span>
                   <span className="flex items-center gap-1">
-                    <HiOutlineMail /> <strong>Email: </strong>
-                    {farmer.email}
+                    <HiOutlineMail /> <strong>Email:</strong> {farmer.email}
                   </span>
                   <span className="flex items-center gap-1">
-                    <FiPhone /> <strong>Contact Number: </strong>
+                    <FiPhone /> <strong>Contact:</strong>{" "}
                     {farmer.contact_number}
                   </span>
 
-                  {/* Goods Scanner Dialog */}
+                  {/* GOODS SCAN DIALOG */}
                   <div className="mt-3">
                     <Dialog
                       open={isGoodsDialogOpen}
@@ -295,7 +339,7 @@ const ScanFarmer = () => {
                             />
                           </div>
 
-                          {/* Right: Scanned Items List */}
+                          {/* Right: Scanned Items */}
                           <div className="border rounded-md p-3 overflow-y-auto">
                             {scannedItems.length === 0 ? (
                               <p className="text-gray-500 text-sm">
@@ -308,78 +352,62 @@ const ScanFarmer = () => {
                                     key={idx}
                                     className="flex flex-col justify-between gap-3 border-b pb-2 last:border-b-0"
                                   >
-                                    {item.notFound ? (
-                                      <span className="text-red-500 text-sm">
-                                        🚫 Item with barcode{" "}
-                                        <strong>{item.barcode}</strong> not
-                                        found
-                                      </span>
-                                    ) : (
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                          {item.picture && (
-                                            <img
-                                              src={item.picture}
-                                              alt={item.name}
-                                              className="w-18 h-18 object-cover rounded border"
-                                            />
-                                          )}
-                                          <div className="flex flex-col flex-1">
-                                            <span className="font-semibold">
-                                              {item.name}
-                                            </span>
-                                            <span className="text-xs text-gray-600">
-                                              {item.description}
-                                            </span>
-
-                                            <span className="text-xs text-gray-400">
-                                              Barcode: {item.barcode}
-                                            </span>
-                                          </div>
-                                        </div>
-
-                                        <div className="flex flex-col items-center gap-2">
-                                          <input
-                                            type="number"
-                                            value={
-                                              item.quantity !== null &&
-                                              item.quantity !== undefined
-                                                ? item.quantity
-                                                : ""
-                                            }
-                                            onChange={(e) => {
-                                              const value = e.target.value;
-                                              const qty =
-                                                value === ""
-                                                  ? undefined
-                                                  : parseInt(value, 10);
-
-                                              setScannedItems((prev) =>
-                                                prev.map((p, i) =>
-                                                  i === idx
-                                                    ? { ...p, quantity: qty }
-                                                    : p
-                                                )
-                                              );
-                                            }}
-                                            className="w-10 border rounded p-1 text-center"
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-2">
+                                        {item.picture && (
+                                          <img
+                                            src={item.picture}
+                                            alt={item.name}
+                                            className="w-18 h-18 object-cover rounded border"
                                           />
-
-                                          <Button
-                                            onClick={() =>
-                                              setScannedItems((prev) =>
-                                                prev.filter((_, i) => i !== idx)
-                                              )
-                                            }
-                                            variant={"destructive"}
-                                            size={"icon"}
-                                            className="rounded-sm"
-                                          >
-                                            <RiDeleteBinFill />
-                                          </Button>
+                                        )}
+                                        <div className="flex flex-col flex-1">
+                                          <span className="font-semibold">
+                                            {item.name}
+                                          </span>
+                                          <span className="text-xs text-gray-600">
+                                            {item.description}
+                                          </span>
+                                          <span className="text-xs text-gray-400">
+                                            Barcode: {item.barcode}
+                                          </span>
                                         </div>
                                       </div>
-                                    )}
+
+                                      <div className="flex flex-col items-center gap-2">
+                                        <input
+                                          type="number"
+                                          value={item.quantity ?? ""}
+                                          onChange={(e) => {
+                                            const qty =
+                                              e.target.value === ""
+                                                ? undefined
+                                                : parseInt(e.target.value, 10);
+                                            setScannedItems((prev) =>
+                                              prev.map((p, i) =>
+                                                i === idx
+                                                  ? { ...p, quantity: qty }
+                                                  : p
+                                              )
+                                            );
+                                          }}
+                                          className="w-10 border rounded p-1 text-center"
+                                        />
+
+                                        <Button
+                                          onClick={() =>
+                                            setScannedItems((prev) =>
+                                              prev.filter((_, i) => i !== idx)
+                                            )
+                                          }
+                                          variant="destructive"
+                                          size="icon"
+                                          className="rounded-sm"
+                                        >
+                                          <RiDeleteBinFill />
+                                        </Button>
+                                      </div>
+                                    </div>
                                   </li>
                                 ))}
                               </ul>
@@ -408,49 +436,6 @@ const ScanFarmer = () => {
                     </Dialog>
                   </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Transactions placeholder */}
-            <div className="flex flex-col gap-2">
-              <h2 className="font-semibold">Previous Transactions</h2>
-              <div className="w-full overflow-x-auto bg-slate-100 rounded-md">
-                <Table>
-                  <TableCaption>A list of your recent invoices.</TableCaption>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Transaction ID</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead className="text-right">Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell className="font-medium">INV001</TableCell>
-                      <TableCell>2025-09-21</TableCell>
-                      <TableCell className="text-right">
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button size="sm">View</Button>
-                          </DialogTrigger>
-                          <DialogContent className="sm:max-w-[425px]">
-                            <DialogHeader>
-                              <DialogTitle>Invoice Details</DialogTitle>
-                              <DialogDescription>
-                                Example invoice details here...
-                              </DialogDescription>
-                            </DialogHeader>
-                            <DialogFooter>
-                              <DialogClose asChild>
-                                <Button variant="outline">Close</Button>
-                              </DialogClose>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
-                      </TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
               </div>
             </div>
           </>

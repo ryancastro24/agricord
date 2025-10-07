@@ -13,9 +13,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { getUsers, createUser } from "@/backend/users";
 import {
   Select,
   SelectTrigger,
@@ -23,25 +28,29 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import supabase from "@/db/config";
 
-// Supabase user type (simplified)
+// ✅ TypeScript interface matching your public "users" table
 type Staff = {
   id: string;
+  auth_id: string;
+  firstname: string;
+  lastname: string;
   email: string;
-  user_metadata: {
-    firstname?: string;
-    lastname?: string;
-    address?: string;
-    contact?: string;
-    role?: string;
-    profile_picture?: string;
-    is_active?: boolean;
-  };
+  contact: string | null;
+  address: string | null;
+  role: string;
+  profile_picture: string | null;
+  is_active: boolean;
+  email_verified: boolean;
+  created_at?: string;
 };
 
+// ✅ Loader fetches from public.users
 export async function loader() {
-  const users = await getUsers();
-  return { users };
+  const { data, error } = await supabase.from("users").select("*");
+  if (error) throw error;
+  return { users: data as Staff[] };
 }
 
 const Staffs = () => {
@@ -59,10 +68,10 @@ const Staffs = () => {
     profile_picture: "",
   });
 
-  // camera state
   const webcamRef = useRef<Webcam>(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
 
+  // ✅ Capture profile picture
   const capture = useCallback(() => {
     const imageSrc = webcamRef.current?.getScreenshot();
     if (imageSrc) {
@@ -71,31 +80,83 @@ const Staffs = () => {
     }
   }, [newStaff]);
 
-  // Create staff account via createUser()
+  // ✅ Create new staff account (Auth + users table)
   const handleCreateStaff = async () => {
-    try {
-      await createUser(newStaff); // axios POST helper
-      setNewStaff({
-        email: "",
-        password: "",
-        firstname: "",
-        lastname: "",
-        role: "staff",
-        contact: "",
-        address: "",
-        profile_picture: "",
-      });
-      window.location.reload();
-    } catch (error) {
-      console.error("Failed to create staff:", error);
+    const {
+      firstname,
+      lastname,
+      email,
+      password,
+      address,
+      contact,
+      role,
+      profile_picture,
+    } = newStaff;
+
+    if (!firstname || !lastname || !email || !password) {
+      alert("Please fill in all required fields");
+      return;
     }
+
+    // Step 1: Create user in Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          firstname,
+          lastname,
+          address,
+          contact,
+          role,
+          profile_picture,
+        },
+      },
+    });
+
+    if (authError) {
+      alert(authError.message);
+      console.error("Auth error:", authError);
+      return;
+    }
+
+    // Step 2: Add to public.users
+    const { error: insertError } = await supabase.from("users").insert({
+      auth_id: authData.user?.id,
+      firstname,
+      lastname,
+      email,
+      profile_picture,
+      address,
+      contact,
+      role,
+      email_verified: false,
+      is_active: true,
+    });
+
+    if (insertError) {
+      console.error("Insert error:", insertError);
+      alert("Failed to save to users table.");
+      return;
+    }
+
+    alert("Staff added successfully!");
+    setNewStaff({
+      email: "",
+      password: "",
+      firstname: "",
+      lastname: "",
+      role: "staff",
+      contact: "",
+      address: "",
+      profile_picture: "",
+    });
+    window.location.reload();
   };
 
-  // Filtered staff list
+  // ✅ Filter staff list
   const filteredStaffs = users.filter((s) => {
-    const fullname = `${s.user_metadata.firstname ?? ""} ${
-      s.user_metadata.lastname ?? ""
-    }`.trim();
+    const fullname = `${s.firstname ?? ""} ${s.lastname ?? ""}`.trim();
     return (
       fullname.toLowerCase().includes(search.toLowerCase()) ||
       s.email.toLowerCase().includes(search.toLowerCase())
@@ -104,6 +165,7 @@ const Staffs = () => {
 
   return (
     <div className="p-6 space-y-6">
+      {/* 🔍 Search and Add Staff */}
       <div className="flex justify-between items-center">
         <Input
           placeholder="Search staff..."
@@ -112,18 +174,20 @@ const Staffs = () => {
           className="w-1/3"
         />
 
-        {/* Add Staff Dialog */}
+        {/* ➕ Add Staff Dialog */}
         <Dialog>
           <DialogTrigger asChild>
             <Button>Add Staff</Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Add New Staff</DialogTitle>
+            </DialogHeader>
             <div className="space-y-4">
-              <h2 className="text-lg font-semibold mb-2">Add New Staff</h2>
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <tbody>
-                    <tr className="border-b">
+                    <tr>
                       <td className="p-2 w-1/3">
                         <Label>Email</Label>
                       </td>
@@ -137,7 +201,7 @@ const Staffs = () => {
                         />
                       </td>
                     </tr>
-                    <tr className="border-b">
+                    <tr>
                       <td className="p-2">
                         <Label>Password</Label>
                       </td>
@@ -154,7 +218,7 @@ const Staffs = () => {
                         />
                       </td>
                     </tr>
-                    <tr className="border-b">
+                    <tr>
                       <td className="p-2">
                         <Label>First Name</Label>
                       </td>
@@ -170,7 +234,7 @@ const Staffs = () => {
                         />
                       </td>
                     </tr>
-                    <tr className="border-b">
+                    <tr>
                       <td className="p-2">
                         <Label>Last Name</Label>
                       </td>
@@ -186,7 +250,7 @@ const Staffs = () => {
                         />
                       </td>
                     </tr>
-                    <tr className="border-b">
+                    <tr>
                       <td className="p-2">
                         <Label>Role</Label>
                       </td>
@@ -208,7 +272,7 @@ const Staffs = () => {
                         </Select>
                       </td>
                     </tr>
-                    <tr className="border-b">
+                    <tr>
                       <td className="p-2">
                         <Label>Contact</Label>
                       </td>
@@ -224,7 +288,7 @@ const Staffs = () => {
                         />
                       </td>
                     </tr>
-                    <tr className="border-b">
+                    <tr>
                       <td className="p-2">
                         <Label>Address</Label>
                       </td>
@@ -245,6 +309,7 @@ const Staffs = () => {
                         <Label>Profile Picture</Label>
                       </td>
                       <td className="p-2 flex items-center gap-3">
+                        {/* 📸 Camera Dialog */}
                         <Dialog
                           open={isCameraOpen}
                           onOpenChange={setIsCameraOpen}
@@ -253,10 +318,9 @@ const Staffs = () => {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="flex items-center gap-2"
                               onClick={() => setIsCameraOpen(true)}
                             >
-                              <Camera className="w-4 h-4" />
+                              <Camera className="w-4 h-4 mr-1" />
                               Take Picture
                             </Button>
                           </DialogTrigger>
@@ -266,9 +330,7 @@ const Staffs = () => {
                               ref={webcamRef}
                               screenshotFormat="image/jpeg"
                               className="rounded-md w-full aspect-video"
-                              videoConstraints={{
-                                facingMode: "user",
-                              }}
+                              videoConstraints={{ facingMode: "user" }}
                             />
                             <Button className="w-full" onClick={capture}>
                               Capture
@@ -298,10 +360,11 @@ const Staffs = () => {
         </Dialog>
       </div>
 
-      {/* Staff List */}
+      {/* 🧑‍💼 Staff List */}
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead>Profile</TableHead>
             <TableHead>Full Name</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Contact</TableHead>
@@ -312,17 +375,25 @@ const Staffs = () => {
         </TableHeader>
         <TableBody>
           {filteredStaffs.map((staff) => {
-            const fullname = `${staff.user_metadata.firstname ?? ""} ${
-              staff.user_metadata.lastname ?? ""
-            }`.trim();
-
+            const fullname = `${staff.firstname} ${staff.lastname}`;
             return (
               <TableRow key={staff.id}>
-                <TableCell>{fullname || "N/A"}</TableCell>
+                <TableCell>
+                  {staff.profile_picture ? (
+                    <img
+                      src={staff.profile_picture}
+                      alt={fullname}
+                      className="w-10 h-10 rounded-full object-cover border"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gray-200" />
+                  )}
+                </TableCell>
+                <TableCell>{fullname}</TableCell>
                 <TableCell>{staff.email}</TableCell>
-                <TableCell>{staff.user_metadata.contact ?? "N/A"}</TableCell>
-                <TableCell>{staff.user_metadata.address ?? "N/A"}</TableCell>
-                <TableCell>{staff.user_metadata.role ?? "N/A"}</TableCell>
+                <TableCell>{staff.contact ?? "N/A"}</TableCell>
+                <TableCell>{staff.address ?? "N/A"}</TableCell>
+                <TableCell>{staff.role}</TableCell>
                 <TableCell className="flex gap-2">
                   <Button variant="secondary" size="sm">
                     Promote

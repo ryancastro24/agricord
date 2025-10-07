@@ -30,7 +30,6 @@ import { FaBookmark } from "react-icons/fa6";
 import { Input } from "@/components/ui/input";
 import { useLoaderData } from "react-router-dom";
 import { Trash2 } from "lucide-react";
-import { getUsers } from "@/backend/users";
 // ✅ Types
 interface Farmer {
   id: number;
@@ -45,7 +44,6 @@ interface Cluster {
   cluster_name: string;
   category: string;
   chairman_id: string;
-  chairman_name: string;
   barangay: string;
   chairman?: { firstname: string; lastname: string };
 }
@@ -55,21 +53,21 @@ const categories = ["Rice", "Corn", "Vegetables", "Root Crops"];
 // ✅ Loader
 export async function loader() {
   try {
-    const users = await getUsers();
-    const [chairmansRes, clustersRes, farmersRes] = await Promise.all([
-      supabase.from("chairmans").select("*"),
-      supabase.from("clusters").select("*"),
-      supabase.from("farmers").select("*"),
-      supabase.from("users").select("*"),
-    ]);
+    const [chairmansRes, clustersRes, farmersRes, usersRes] = await Promise.all(
+      [
+        supabase.from("chairmans").select("*"),
+        supabase.from("clusters").select("*"),
+        supabase.from("farmers").select("*"),
+        supabase.from("users").select("*"),
+      ]
+    );
 
     return {
       clusters: clustersRes.data || [],
       farmers: farmersRes.data || [],
+      usersRes: usersRes.data || [],
       error:
         chairmansRes.error || clustersRes.error || farmersRes.error || null,
-
-      users,
     };
   } catch (err) {
     console.error("Unexpected error:", err);
@@ -83,15 +81,15 @@ export async function loader() {
 }
 
 const Clusters = () => {
-  const { clusters, farmers, users } = useLoaderData() as {
+  const { clusters, farmers, usersRes } = useLoaderData() as {
     chairmans: any[];
     clusters: Cluster[];
     farmers: Farmer[];
     error: any;
-    users: any;
+    usersRes: any;
   };
 
-  console.log(clusters);
+  console.log(usersRes);
   const [clusterList, setClusters] = useState<Cluster[]>(clusters);
   const [openCluster, setOpenCluster] = useState<Cluster | null>(null);
   const [clusterFarmers, setClusterFarmers] = useState<Farmer[]>([]);
@@ -103,7 +101,6 @@ const Clusters = () => {
     cluster_name: "",
     barangay: "",
     chairman_id: "",
-    chairman_name: "",
     category: "",
   });
   const [chairmanSearch, setChairmanSearch] = useState("");
@@ -127,7 +124,7 @@ const Clusters = () => {
           cluster_name: newCluster.cluster_name,
           barangay: newCluster.barangay,
           chairman_id: newCluster.chairman_id,
-          chairman_name: newCluster.chairman_name,
+
           category: newCluster.category,
         },
       ])
@@ -146,7 +143,6 @@ const Clusters = () => {
       barangay: "",
       chairman_id: "",
       category: "",
-      chairman_name: "",
     });
     setChairmanSearch("");
     setOpenAddDialog(false);
@@ -240,7 +236,7 @@ const Clusters = () => {
               </p>
               <p className="text-sm">
                 <strong>Chairman:</strong>{" "}
-                {cluster.chairman_id ? `${cluster.chairman_name}` : "N/A"}
+                {cluster.chairman_id ? `sample` : "N/A"}
               </p>
               <p className="text-sm">
                 <strong>Barangay:</strong> {cluster.barangay}
@@ -291,9 +287,9 @@ const Clusters = () => {
               />
               {chairmanSearch && (
                 <div className="border rounded-md mt-1 max-h-32 overflow-y-auto">
-                  {users
+                  {usersRes
                     .filter((c: any) =>
-                      `${c.user_metadata.firstname} ${c.user_metadata.lastname}`
+                      `${c.firstname} ${c.lastname}`
                         .toLowerCase()
                         .includes(chairmanSearch.toLowerCase())
                     )
@@ -304,15 +300,12 @@ const Clusters = () => {
                         onClick={() => {
                           setNewCluster({
                             ...newCluster,
-                            chairman_id: c.id,
-                            chairman_name: `${c.user_metadata.firstname} ${c.user_metadata.lastname}`,
+                            chairman_id: c.auth_id,
                           });
-                          setChairmanSearch(
-                            `${c.user_metadata.firstname} ${c.user_metadata.lastname}`
-                          );
+                          setChairmanSearch(`${c.firstname} ${c.lastname}`);
                         }}
                       >
-                        {c.user_metadata.firstname} {c.user_metadata.lastname}
+                        {c.firstname} {c.lastname}
                       </div>
                     ))}
                 </div>

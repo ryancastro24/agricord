@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/dashboardComponents/AuthContext";
 import {
   Table,
   TableBody,
@@ -16,28 +17,83 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal } from "lucide-react";
+import supabase from "@/db/config"; // adjust path to your Supabase client
 
 // Types
 interface Farmer {
-  id_number: string;
-  firstname: string;
-  lastname: string;
-  contact_number: string;
-  address: string;
+  id: string | null;
+  id_number: string | null;
+  firstname: string | null;
+  lastname: string | null;
+  contact_number: string | null;
+  purok: string | null;
+  barangay: string | null;
+  city: string | null;
+  province: string | null;
 }
 
 const ClusterList = () => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [page, setPage] = useState<number>(1);
+  const [farmers, setFarmers] = useState<Farmer[]>([]);
+  const [clusterName, setClusterName] = useState<string>("");
+  const { user } = useAuth();
 
-  // Sample farmers data
-  const farmers: Farmer[] = Array.from({ length: 42 }, (_, i) => ({
-    id_number: `F${String(i + 1).padStart(3, "0")}`,
-    firstname: `First${i + 1}`,
-    lastname: `Last${i + 1}`,
-    contact_number: `0912-345-67${i % 10}${i % 10}`,
-    address: `Barangay ${i + 1}, Butuan City`,
-  }));
+  useEffect(() => {
+    const fetchFarmers = async () => {
+      if (!user?.id) return;
+
+      // Step 1: Get cluster(s) owned by this user
+      const { data: clusters, error: clusterError } = await supabase
+        .from("clusters")
+        .select("id, cluster_name")
+        .eq("chairman_id", user.id)
+        .single(); // assuming 1 cluster per user; remove .single() if multiple
+
+      if (clusterError) {
+        console.error("Error fetching clusters:", clusterError);
+        return;
+      }
+
+      if (!clusters) return;
+
+      setClusterName(clusters.cluster_name);
+
+      // Step 2: Get farmer clusters + farmer details
+      const { data: farmerClusters, error: farmerError } = await supabase
+        .from("farmer_clusters")
+        .select(
+          `
+          farmer_id,
+          farmers (
+            id,
+            id_number,
+            firstname,
+            lastname,
+            contact_number,
+           purok,
+           barangay,
+           city,
+           province
+
+          )
+        `
+        )
+        .eq("cluster_id", clusters.id);
+
+      if (farmerError) {
+        console.error("Error fetching farmer clusters:", farmerError);
+        return;
+      }
+
+      if (farmerClusters) {
+        const mappedFarmers = farmerClusters.map((fc: any) => fc.farmers);
+        setFarmers(mappedFarmers);
+      }
+    };
+
+    fetchFarmers();
+  }, [user?.id]);
 
   // Filtering + pagination
   const filteredFarmers = farmers.filter((f) =>
@@ -57,7 +113,7 @@ const ClusterList = () => {
     <div className="p-4 md:p-6 space-y-4">
       {/* Cluster Name */}
       <h2 className="text-xl font-semibold">
-        Cluster Name: Rice Farmers Group
+        Cluster Name: {clusterName || "Loading..."}
       </h2>
 
       {/* Search Field */}
@@ -88,12 +144,15 @@ const ClusterList = () => {
           </TableHeader>
           <TableBody>
             {paginatedFarmers.map((farmer) => (
-              <TableRow key={farmer.id_number}>
+              <TableRow key={farmer.id}>
                 <TableCell>{farmer.id_number}</TableCell>
                 <TableCell>{farmer.firstname}</TableCell>
                 <TableCell>{farmer.lastname}</TableCell>
                 <TableCell>{farmer.contact_number}</TableCell>
-                <TableCell>{farmer.address}</TableCell>
+                <TableCell>
+                  {farmer.purok} {farmer.barangay} {farmer.city}{" "}
+                  {farmer.province}
+                </TableCell>
                 <TableCell className="text-center">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

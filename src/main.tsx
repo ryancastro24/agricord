@@ -19,6 +19,9 @@ import Clusters, { loader as ClusterLoader } from "./dashboardpages/Clusters";
 import Chairmans from "./dashboardpages/Chairmans";
 import ClusterList from "./dashboardpages/ClusterList";
 import FarmerAttendance from "./dashboardpages/FarmerAttendance";
+import ChairmanItemReturn from "./dashboardpages/ChairmanItemReturn";
+import { AuthProvider } from "./dashboardComponents/AuthContext";
+import GenerateItemPDF from "./dashboardComponents/GenerateItemPDF";
 const router = createBrowserRouter([
   {
     path: "/",
@@ -90,12 +93,24 @@ const router = createBrowserRouter([
         path: "cluster_list",
         element: <ClusterList />,
       },
+
+      {
+        path: "chairman_item_return",
+        element: <ChairmanItemReturn />,
+      },
+
+      {
+        path: "/dashboard/item-pdf/:id",
+        element: <GenerateItemPDF />,
+      },
     ],
   },
 ]);
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <RouterProvider router={router} />
+    <AuthProvider>
+      <RouterProvider router={router} />
+    </AuthProvider>
   </StrictMode>
 );

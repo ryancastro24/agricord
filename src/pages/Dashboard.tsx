@@ -41,9 +41,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-
+import { GoPackageDependencies } from "react-icons/go";
 export async function loader() {
   const { data, error } = await supabase.auth.getUser();
+
+  console.log("Loader user data:", data);
 
   if (error) {
     console.error("Error fetching user:", error);
@@ -141,6 +143,13 @@ const Dashboard = () => {
       label: "Cluster List",
       roles: ["admin", "chairman"],
     },
+
+    {
+      to: "/dashboard/chairman_item_return",
+      icon: <GoPackageDependencies size={15} />,
+      label: "Item Returns",
+      roles: ["admin", "chairman"],
+    },
   ];
 
   // Filter items by role
@@ -159,7 +168,7 @@ const Dashboard = () => {
             </Avatar>
             <div className="flex flex-col ml-2">
               <h2 className="truncate text-sm font-bold">
-                {data.user.user_metadata.lastname}
+                {data?.user?.user_metadata?.lastname}
               </h2>
               <span className="text-xs capitalize">{role}</span>
             </div>
@@ -200,7 +209,7 @@ const Dashboard = () => {
                 </Avatar>
                 <div className="flex flex-col ml-2">
                   <h2 className="truncate text-sm font-bold">
-                    {data.user.user_metadata.lastname}
+                    {data?.user?.user_metadata?.lastname}
                   </h2>
                   <span className="text-xs capitalize">{role}</span>
                 </div>
@@ -242,6 +251,7 @@ const Dashboard = () => {
             {pathname === "/dashboard/clusters" && "Clusters"}
             {pathname === "/dashboard/farmer_attendance" && "Farmer Attendance"}
             {pathname === "/dashboard/cluster_list" && "Cluster List"}
+            {pathname === "/dashboard/chairman_item_return" && "Item Returns"}
           </h2>
 
           <div className="flex items-center gap-2">
