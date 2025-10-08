@@ -159,6 +159,7 @@ const ScanFarmer = () => {
   };
 
   // 💾 Save transactions
+  // 💾 Save transactions + deduct inventory
   const saveTransaction = async () => {
     if (!farmer) {
       alert("⚠️ No farmer selected!");
@@ -204,13 +205,48 @@ const ScanFarmer = () => {
         quantity: item.quantity ?? 1,
       }));
 
-      // 4️⃣ Save to transactions
+      // 4️⃣ Save to transactions table
       const { error: transactionError } = await supabase
         .from("transactions")
         .insert(transactions);
       if (transactionError) throw transactionError;
 
-      // 5️⃣ Record attendance
+      // 5️⃣ Deduct item quantities from inventory
+      for (const item of scannedItems) {
+        const quantityToDeduct = item.quantity ?? 1;
+
+        // 🔹 Get current item quantity
+        const { data: currentItem, error: fetchError } = await supabase
+          .from("items")
+          .select("quantity")
+          .eq("id", item.id)
+          .single();
+
+        if (fetchError || !currentItem) {
+          console.error(`❌ Error fetching item ${item.name}`, fetchError);
+          continue; // skip to next item
+        }
+
+        const newQuantity = Math.max(
+          (currentItem.quantity ?? 0) - quantityToDeduct,
+          0
+        );
+
+        // 🔹 Update item quantity
+        const { error: updateError } = await supabase
+          .from("items")
+          .update({ quantity: newQuantity })
+          .eq("id", item.id);
+
+        if (updateError) {
+          console.error(
+            `❌ Error updating quantity for ${item.name}`,
+            updateError
+          );
+        }
+      }
+
+      // 6️⃣ Record attendance
       const { error: attendanceError } = await supabase
         .from("attendance")
         .insert([
@@ -221,7 +257,7 @@ const ScanFarmer = () => {
         ]);
       if (attendanceError) throw attendanceError;
 
-      alert("✅ Transactions and attendance saved successfully!");
+      alert("✅ Transactions saved and inventory updated successfully!");
       setScannedItems([]);
       setIsGoodsDialogOpen(false);
     } catch (err: any) {
