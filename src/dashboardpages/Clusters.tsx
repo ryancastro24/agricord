@@ -30,7 +30,7 @@ import { FaBookmark } from "react-icons/fa6";
 import { Input } from "@/components/ui/input";
 import { useLoaderData } from "react-router-dom";
 import { Trash2 } from "lucide-react";
-// ✅ Types
+
 interface Farmer {
   id: number;
   firstname: string;
@@ -72,9 +72,9 @@ export async function loader() {
   } catch (err) {
     console.error("Unexpected error:", err);
     return {
-      chairmans: [],
       clusters: [],
       farmers: [],
+      usersRes: [],
       error: "Unexpected error",
     };
   }
@@ -82,20 +82,18 @@ export async function loader() {
 
 const Clusters = () => {
   const { clusters, farmers, usersRes } = useLoaderData() as {
-    chairmans: any[];
     clusters: Cluster[];
     farmers: Farmer[];
+    usersRes: any[];
     error: any;
-    usersRes: any;
   };
 
-  console.log(usersRes);
-  const [clusterList, setClusters] = useState<Cluster[]>(clusters);
+  const [clusterList, setClusters] = useState<Cluster[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const [openCluster, setOpenCluster] = useState<Cluster | null>(null);
   const [clusterFarmers, setClusterFarmers] = useState<Farmer[]>([]);
   const [selectedFarmer, setSelectedFarmer] = useState<number | null>(null);
-
-  // Add Cluster Dialog
   const [openAddDialog, setOpenAddDialog] = useState(false);
   const [newCluster, setNewCluster] = useState<Omit<Cluster, "id">>({
     cluster_name: "",
@@ -105,7 +103,15 @@ const Clusters = () => {
   });
   const [chairmanSearch, setChairmanSearch] = useState("");
 
-  // ✅ Handle Add Cluster
+  // ✅ Simulate loader delay (show skeleton until data is ready)
+  useEffect(() => {
+    if (clusters && farmers) {
+      setClusters(clusters);
+      setTimeout(() => setLoading(false), 600); // slight delay for smooth transition
+    }
+  }, [clusters, farmers]);
+
+  // ✅ Add Cluster
   const handleAddCluster = async () => {
     if (
       !newCluster.cluster_name ||
@@ -124,7 +130,6 @@ const Clusters = () => {
           cluster_name: newCluster.cluster_name,
           barangay: newCluster.barangay,
           chairman_id: newCluster.chairman_id,
-
           category: newCluster.category,
         },
       ])
@@ -148,7 +153,6 @@ const Clusters = () => {
     setOpenAddDialog(false);
   };
 
-  // ✅ Load farmers for selected cluster
   const loadClusterFarmers = async (clusterId: number) => {
     const { data, error } = await supabase
       .from("farmer_clusters")
@@ -166,7 +170,6 @@ const Clusters = () => {
     setClusterFarmers(farmerDetails);
   };
 
-  // ✅ Add farmer to cluster
   const handleAddFarmerToCluster = async () => {
     if (!openCluster || !selectedFarmer) return;
 
@@ -186,7 +189,6 @@ const Clusters = () => {
     setSelectedFarmer(null);
   };
 
-  // ✅ Remove farmer from cluster
   const handleRemoveFarmer = async (farmerId: number) => {
     if (!openCluster) return;
 
@@ -210,6 +212,32 @@ const Clusters = () => {
     }
   }, [openCluster]);
 
+  // 🦴 Skeleton Loader
+  if (loading) {
+    return (
+      <div className="p-6 animate-pulse space-y-6">
+        {/* Header skeleton */}
+        <div className="flex justify-between">
+          <div className="h-6 w-48 bg-gray-200 rounded" />
+          <div className="h-10 w-32 bg-gray-200 rounded" />
+        </div>
+
+        {/* Cluster cards skeleton */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="border rounded-lg p-4 space-y-3">
+              <div className="h-5 bg-gray-200 rounded w-1/2" />
+              <div className="h-4 bg-gray-200 rounded w-3/4" />
+              <div className="h-4 bg-gray-200 rounded w-1/3" />
+              <div className="h-9 bg-gray-200 rounded w-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ Actual content
   return (
     <div className="p-6">
       {/* Add Cluster Button */}
@@ -220,7 +248,7 @@ const Clusters = () => {
         </Button>
       </div>
 
-      {/* Clusters Grid */}
+      {/* Cluster Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {clusterList.map((cluster: Cluster) => (
           <Card key={cluster.id}>
@@ -236,7 +264,7 @@ const Clusters = () => {
               </p>
               <p className="text-sm">
                 <strong>Chairman:</strong>{" "}
-                {cluster.chairman_id ? `sample` : "N/A"}
+                {cluster.chairman_id ? "Sample" : "N/A"}
               </p>
               <p className="text-sm">
                 <strong>Barangay:</strong> {cluster.barangay}

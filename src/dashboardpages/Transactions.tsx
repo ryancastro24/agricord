@@ -62,7 +62,6 @@ const Transactions = () => {
   useEffect(() => {
     let results = [...transactions];
 
-    // 🔍 Search by farmer, staff, or item
     if (searchTerm.trim() !== "") {
       const lower = searchTerm.toLowerCase();
       results = results.filter(
@@ -77,7 +76,6 @@ const Transactions = () => {
       );
     }
 
-    // 📅 Filter by date acquired
     if (selectedDate) {
       const target = format(selectedDate, "yyyy-MM-dd");
       results = results.filter((t) => t.created_at.startsWith(target));
@@ -86,7 +84,6 @@ const Transactions = () => {
     setFilteredTransactions(results);
   }, [searchTerm, selectedDate, transactions]);
 
-  // 🗑️ Clear date
   const clearDate = () => setSelectedDate(null);
 
   return (
@@ -132,9 +129,47 @@ const Transactions = () => {
         </div>
       </div>
 
-      {/* 🧾 Transactions Table */}
+      {/* 🧾 Transactions Table or Skeleton */}
       {loading ? (
-        <p className="text-gray-600 mt-4">Loading transactions...</p>
+        // 🦴 Skeleton Loader
+        <div className="border rounded-lg shadow-sm overflow-x-auto mt-4 animate-pulse">
+          <div className="p-4 space-y-3">
+            <div className="h-6 bg-gray-200 rounded w-1/3"></div>
+            <div className="h-6 bg-gray-200 rounded w-1/4"></div>
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Farmer</TableHead>
+                <TableHead>Staff</TableHead>
+                <TableHead>Item</TableHead>
+                <TableHead>Quantity</TableHead>
+                <TableHead>Date Acquired</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {[...Array(6)].map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell>
+                    <div className="h-4 bg-gray-200 rounded w-24"></div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="h-4 bg-gray-200 rounded w-24"></div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="h-4 bg-gray-200 rounded w-32"></div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="h-4 bg-gray-200 rounded w-16"></div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="h-4 bg-gray-200 rounded w-28"></div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       ) : filteredTransactions.length === 0 ? (
         <p className="text-gray-500 mt-4">No transactions found.</p>
       ) : (

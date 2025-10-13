@@ -9,9 +9,7 @@ import ScanFarmer, {
 } from "./dashboardpages/ScanFarmer";
 import Farmers, { loader as FarmerLoader } from "./dashboardpages/Farmers";
 import Staffs, { loader as StaffsLoader } from "./dashboardpages/Staffs";
-import Inventory, {
-  loader as InventoryLoader,
-} from "./dashboardpages/Inventory";
+import Inventory from "./dashboardpages/Inventory";
 import Transactions from "./dashboardpages/Transactions";
 import ProtectedRoute from "./components/ui/ProtectedRoutes";
 import PublicRoute from "./components/PublicRoutes";
@@ -22,6 +20,7 @@ import FarmerAttendance from "./dashboardpages/FarmerAttendance";
 import ChairmanItemReturn from "./dashboardpages/ChairmanItemReturn";
 import { AuthProvider } from "./dashboardComponents/AuthContext";
 import GenerateItemPDF from "./dashboardComponents/GenerateItemPDF";
+import { Toaster } from "sonner";
 const router = createBrowserRouter([
   {
     path: "/",
@@ -78,7 +77,6 @@ const router = createBrowserRouter([
       {
         path: "inventory",
         element: <Inventory />,
-        loader: InventoryLoader,
       },
       {
         path: "transactions",
@@ -111,6 +109,7 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <AuthProvider>
       <RouterProvider router={router} />
+      <Toaster richColors position="top-right" />
     </AuthProvider>
   </StrictMode>
 );
