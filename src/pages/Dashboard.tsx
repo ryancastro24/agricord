@@ -93,7 +93,7 @@ const Dashboard = () => {
       to: "/dashboard/scanner",
       icon: <LuScanQrCode size={15} />,
       label: "Scan Farmer",
-      roles: ["admin", "chairman"],
+      roles: ["chairman"],
     },
     {
       to: "/dashboard/farmers",
@@ -105,7 +105,7 @@ const Dashboard = () => {
       to: "/dashboard/staffs",
       icon: <LuUserPen size={15} />,
       label: "Manage Staffs",
-      roles: ["admin", "staff"],
+      roles: ["admin"],
     },
     {
       to: "/dashboard/chairmans",
@@ -135,20 +135,20 @@ const Dashboard = () => {
       to: "/dashboard/farmer_attendance",
       icon: <BsPersonCheck size={15} />,
       label: "Farmer Attendance",
-      roles: ["admin", "chairman"],
+      roles: ["chairman"],
     },
     {
       to: "/dashboard/cluster_list",
       icon: <TbCheckupList size={15} />,
       label: "Cluster List",
-      roles: ["admin", "chairman"],
+      roles: ["chairman"],
     },
 
     {
       to: "/dashboard/chairman_item_return",
       icon: <GoPackageDependencies size={15} />,
       label: "Item Returns",
-      roles: ["admin", "chairman"],
+      roles: ["chairman"],
     },
   ];
 

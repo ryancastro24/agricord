@@ -1,20 +1,23 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom"; // ✅ import router hook
+import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { HiOutlineMail } from "react-icons/hi";
 import { MdLockOutline } from "react-icons/md";
+import { Loader2 } from "lucide-react"; // ✅ spinner icon
 import supabase from "@/db/config";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
-  const navigate = useNavigate(); // ✅ initialize router navigation
+  const [loading, setLoading] = useState(false); // ✅ loading state
+  const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true); // ✅ start loading
 
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -23,25 +26,32 @@ const LoginPage = () => {
 
     if (error) {
       setErrorMsg(error.message);
+      setLoading(false); // ✅ stop loading if failed
     } else {
       console.log("✅ Logged in user:", data.user);
       setErrorMsg("");
-
-      // ✅ redirect to dashboard
       navigate("/dashboard/", { replace: true });
     }
   };
 
   return (
-    <div className="flex items-center justify-center h-screen bg-[url(./src/assets/farming.jpg)] bg-cover bg-center">
-      <div className="bg-white flex items-center flex-col p-8 h-full shadow-lg w-[400px] ml-auto mr-[100px]">
-        <div className="w-[100px] h-[100px] bg-gray-300 rounded-full mb-8"></div>
+    <div className="flex items-center justify-center min-h-screen bg-[url(./src/assets/farming.jpg)] bg-cover bg-center">
+      {/* Main Card */}
+      <div className="bg-white flex flex-col items-center p-8 rounded-2xl shadow-xl w-[90%] max-w-md sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-md 2xl:max-w-lg sm:h-auto md:h-auto">
+        {/* Logo / Avatar */}
+        <div className="w-[80px] h-[80px] bg-gray-300 rounded-full mb-6"></div>
 
         {/* Error message */}
-        {errorMsg && <p className="text-red-500 text-sm mb-4">{errorMsg}</p>}
+        {errorMsg && (
+          <p className="text-red-500 text-sm text-center mb-4">{errorMsg}</p>
+        )}
 
-        <form onSubmit={handleLogin} className="w-full flex flex-col gap-5">
-          <div className="grid w-full max-w-sm items-center gap-3">
+        {/* Form */}
+        <form
+          onSubmit={handleLogin}
+          className="w-full flex flex-col gap-5 text-sm sm:text-base"
+        >
+          <div className="grid w-full items-center gap-3">
             <Label htmlFor="email" className="flex items-center gap-1">
               <HiOutlineMail size={15} />
               Email
@@ -53,10 +63,11 @@ const LoginPage = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              disabled={loading}
             />
           </div>
 
-          <div className="grid w-full max-w-sm items-center gap-3">
+          <div className="grid w-full items-center gap-3">
             <Label htmlFor="password" className="flex items-center gap-1">
               <MdLockOutline size={15} />
               Password
@@ -68,20 +79,33 @@ const LoginPage = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              disabled={loading}
             />
           </div>
 
-          <div className="w-full">
-            <Button type="submit" className="w-full h-[50px] mt-3">
-              LOGIN
-            </Button>
-          </div>
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full h-[45px] mt-3 flex items-center justify-center gap-2 text-sm sm:text-base"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="animate-spin h-4 w-4" />
+                Logging in...
+              </>
+            ) : (
+              "LOGIN"
+            )}
+          </Button>
         </form>
 
-        <div className="w-full mt-5">
-          <h2 className="text-sm">
+        {/* Footer */}
+        <div className="w-full mt-5 text-center">
+          <h2 className="text-xs sm:text-sm">
             Forgot password?{" "}
-            <span className="text-blue-600 cursor-pointer">Recover</span>
+            <span className="text-blue-600 cursor-pointer hover:underline">
+              Recover
+            </span>
           </h2>
         </div>
       </div>

@@ -7,7 +7,7 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import ScanFarmer, {
   loader as ScanFarmerLoader,
 } from "./dashboardpages/ScanFarmer";
-import Farmers, { loader as FarmerLoader } from "./dashboardpages/Farmers";
+import Farmers from "./dashboardpages/Farmers";
 import Staffs, { loader as StaffsLoader } from "./dashboardpages/Staffs";
 import Inventory from "./dashboardpages/Inventory";
 import Transactions from "./dashboardpages/Transactions";
@@ -57,7 +57,6 @@ const router = createBrowserRouter([
       {
         path: "farmers",
         element: <Farmers />,
-        loader: FarmerLoader,
       },
       {
         path: "staffs",
