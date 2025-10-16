@@ -29,6 +29,7 @@ import { Menu } from "lucide-react";
 import { BsPersonCheck } from "react-icons/bs";
 import { TbCheckupList } from "react-icons/tb";
 import { FiLogOut } from "react-icons/fi";
+import { LuTractor } from "react-icons/lu";
 
 import {
   AlertDialog,
@@ -149,6 +150,13 @@ const Dashboard = () => {
       icon: <GoPackageDependencies size={15} />,
       label: "Item Returns",
       roles: ["chairman"],
+    },
+
+    {
+      to: "/dashboard/machinery_inventory",
+      icon: <LuTractor size={15} />,
+      label: "Machinery Inventory",
+      roles: ["admin"],
     },
   ];
 

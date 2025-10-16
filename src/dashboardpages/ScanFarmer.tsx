@@ -2,11 +2,14 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Scanner } from "@yudiel/react-qr-scanner";
 import { SlLocationPin } from "react-icons/sl";
-import { HiOutlineMail, HiOutlineUser } from "react-icons/hi";
+import { HiOutlineUser } from "react-icons/hi";
 import { FiPhone } from "react-icons/fi";
 import { Button } from "@/components/ui/button";
+import { LuCake } from "react-icons/lu";
 import supabase from "@/db/config";
 import { useLoaderData, useNavigate } from "react-router-dom";
+import { Table, TableRow, TableCell, TableBody } from "@/components/ui/table";
+import { BsGenderTrans } from "react-icons/bs";
 import {
   Dialog,
   DialogClose,
@@ -42,6 +45,16 @@ type Farmer = {
   barangay?: string;
   city?: string;
   province?: string;
+  sex?: string;
+  date_of_birth?: string;
+  civil_status?: string;
+  religion?: string;
+  highest_formal_education?: string;
+  is_with_disability?: boolean;
+  is_4ps_beneficiary?: boolean;
+  cooperative?: string;
+  person_to_notify_emergency?: string;
+  person_to_notify_emergency_contact_number?: string;
 };
 
 type ScannedItem = {
@@ -319,158 +332,238 @@ const ScanFarmer = () => {
         ) : (
           <>
             {/* Farmer Profile */}
-            <div className="w-full flex flex-col md:flex-row gap-4">
-              <div className="bg-slate-100 w-full md:w-[200px] h-[200px] rounded">
-                <img
-                  src={farmer.profile_picture}
-                  className="w-full h-full object-cover rounded"
-                  alt="profile"
-                />
-              </div>
-              <div className="flex-1">
-                <div className="flex flex-col gap-2 mt-2 text-sm">
-                  <span className="flex items-center gap-1">
-                    <HiOutlineUser /> <strong>Name:</strong> {farmer.firstname}{" "}
-                    {farmer.lastname}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <SlLocationPin /> <strong>Address:</strong> {farmer.purok},{" "}
-                    {farmer.barangay}, {farmer.city}, {farmer.province}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <HiOutlineMail /> <strong>Email:</strong> {farmer.email}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <FiPhone /> <strong>Contact:</strong>{" "}
-                    {farmer.contact_number}
-                  </span>
+            <div className="w-full flex flex-col  gap-4">
+              <div className="md:flex-row flex flex-col gap-4">
+                <div className="bg-slate-100 md:flex-row w-full md:w-[200px] h-[200px] rounded">
+                  <img
+                    src={farmer.profile_picture}
+                    className="w-full h-full object-cover rounded"
+                    alt="profile"
+                  />
+                </div>
+                <div className="flex-1">
+                  <div className="flex flex-col gap-2 mt-2 text-sm">
+                    <span className="flex items-center gap-1">
+                      <HiOutlineUser /> <strong>Name:</strong>{" "}
+                      {farmer.firstname} {farmer.lastname}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <SlLocationPin /> <strong>Address:</strong> {farmer.purok}
+                      , {farmer.barangay}, {farmer.city}, {farmer.province}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <BsGenderTrans /> <strong>Sex:</strong> {farmer.sex}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <FiPhone /> <strong>Contact:</strong>{" "}
+                      {farmer.contact_number}
+                    </span>
 
-                  {/* GOODS SCAN DIALOG */}
-                  <div className="mt-3">
-                    <Dialog
-                      open={isGoodsDialogOpen}
-                      onOpenChange={setIsGoodsDialogOpen}
-                    >
-                      <DialogTrigger asChild>
-                        <Button className="w-full md:w-auto">
-                          Scan Goods Collected
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="w-full md:w-[90vw] rounded-none md:rounded p-4">
-                        <DialogHeader>
-                          <DialogTitle>Scan Goods</DialogTitle>
-                          <DialogDescription>
-                            Use the scanner below to record collected goods.
-                          </DialogDescription>
-                        </DialogHeader>
+                    <span className="flex items-center gap-1">
+                      <LuCake /> <strong>Birthdate:</strong>{" "}
+                      {farmer.date_of_birth}
+                    </span>
 
-                        <div className="flex flex-col md:grid md:grid-cols-[300px_1fr] gap-4 h-full">
-                          {/* Left: Scanner */}
-                          <div className="bg-slate-100 w-full h-[250px] md:h-[300px] rounded overflow-hidden">
-                            <Scanner
-                              onScan={handleGoodsScan}
-                              allowMultiple={true}
-                              onError={(error) => console.error(error)}
-                              constraints={{ facingMode: "environment" }}
-                            />
-                          </div>
+                    {/* GOODS SCAN DIALOG */}
+                    <div className="mt-3">
+                      <Dialog
+                        open={isGoodsDialogOpen}
+                        onOpenChange={setIsGoodsDialogOpen}
+                      >
+                        <DialogTrigger asChild>
+                          <Button className="w-full md:w-auto">
+                            Scan Goods Collected
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="w-full md:w-[90vw] rounded-none md:rounded p-4">
+                          <DialogHeader>
+                            <DialogTitle>Scan Goods</DialogTitle>
+                            <DialogDescription>
+                              Use the scanner below to record collected goods.
+                            </DialogDescription>
+                          </DialogHeader>
 
-                          {/* Right: Scanned Items */}
-                          <div className="border rounded-md p-3 overflow-y-auto">
-                            {scannedItems.length === 0 ? (
-                              <p className="text-gray-500 text-sm">
-                                No items scanned yet.
-                              </p>
-                            ) : (
-                              <ul className="space-y-3">
-                                {scannedItems.map((item, idx) => (
-                                  <li
-                                    key={idx}
-                                    className="flex flex-col justify-between gap-3 border-b pb-2 last:border-b-0"
-                                  >
-                                    <div className="flex items-center justify-between">
-                                      <div className="flex items-center gap-2">
-                                        {item.picture && (
-                                          <img
-                                            src={item.picture}
-                                            alt={item.name}
-                                            className="w-18 h-18 object-cover rounded border"
+                          <div className="flex flex-col md:grid md:grid-cols-[300px_1fr] gap-4 h-full">
+                            {/* Left: Scanner */}
+                            <div className="bg-slate-100 w-full h-[250px] md:h-[300px] rounded overflow-hidden">
+                              <Scanner
+                                onScan={handleGoodsScan}
+                                allowMultiple={true}
+                                onError={(error) => console.error(error)}
+                                constraints={{ facingMode: "environment" }}
+                              />
+                            </div>
+
+                            {/* Right: Scanned Items */}
+                            <div className="border rounded-md p-3 overflow-y-auto">
+                              {scannedItems.length === 0 ? (
+                                <p className="text-gray-500 text-sm">
+                                  No items scanned yet.
+                                </p>
+                              ) : (
+                                <ul className="space-y-3">
+                                  {scannedItems.map((item, idx) => (
+                                    <li
+                                      key={idx}
+                                      className="flex flex-col justify-between gap-3 border-b pb-2 last:border-b-0"
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                          {item.picture && (
+                                            <img
+                                              src={item.picture}
+                                              alt={item.name}
+                                              className="w-18 h-18 object-cover rounded border"
+                                            />
+                                          )}
+                                          <div className="flex flex-col flex-1">
+                                            <span className="font-semibold">
+                                              {item.name}
+                                            </span>
+                                            <span className="text-xs text-gray-600">
+                                              {item.description}
+                                            </span>
+                                            <span className="text-xs text-gray-400">
+                                              Barcode: {item.barcode}
+                                            </span>
+                                          </div>
+                                        </div>
+
+                                        <div className="flex flex-col items-center gap-2">
+                                          <input
+                                            type="number"
+                                            value={item.quantity ?? ""}
+                                            onChange={(e) => {
+                                              const qty =
+                                                e.target.value === ""
+                                                  ? undefined
+                                                  : parseInt(
+                                                      e.target.value,
+                                                      10
+                                                    );
+                                              setScannedItems((prev) =>
+                                                prev.map((p, i) =>
+                                                  i === idx
+                                                    ? { ...p, quantity: qty }
+                                                    : p
+                                                )
+                                              );
+                                            }}
+                                            className="w-10 border rounded p-1 text-center"
                                           />
-                                        )}
-                                        <div className="flex flex-col flex-1">
-                                          <span className="font-semibold">
-                                            {item.name}
-                                          </span>
-                                          <span className="text-xs text-gray-600">
-                                            {item.description}
-                                          </span>
-                                          <span className="text-xs text-gray-400">
-                                            Barcode: {item.barcode}
-                                          </span>
+
+                                          <Button
+                                            onClick={() =>
+                                              setScannedItems((prev) =>
+                                                prev.filter((_, i) => i !== idx)
+                                              )
+                                            }
+                                            variant="destructive"
+                                            size="icon"
+                                            className="rounded-sm"
+                                          >
+                                            <RiDeleteBinFill />
+                                          </Button>
                                         </div>
                                       </div>
-
-                                      <div className="flex flex-col items-center gap-2">
-                                        <input
-                                          type="number"
-                                          value={item.quantity ?? ""}
-                                          onChange={(e) => {
-                                            const qty =
-                                              e.target.value === ""
-                                                ? undefined
-                                                : parseInt(e.target.value, 10);
-                                            setScannedItems((prev) =>
-                                              prev.map((p, i) =>
-                                                i === idx
-                                                  ? { ...p, quantity: qty }
-                                                  : p
-                                              )
-                                            );
-                                          }}
-                                          className="w-10 border rounded p-1 text-center"
-                                        />
-
-                                        <Button
-                                          onClick={() =>
-                                            setScannedItems((prev) =>
-                                              prev.filter((_, i) => i !== idx)
-                                            )
-                                          }
-                                          variant="destructive"
-                                          size="icon"
-                                          className="rounded-sm"
-                                        >
-                                          <RiDeleteBinFill />
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
                           </div>
-                        </div>
 
-                        <DialogFooter>
-                          <DialogClose asChild>
+                          <DialogFooter>
+                            <DialogClose asChild>
+                              <Button
+                                variant="outline"
+                                className="w-full md:w-auto"
+                              >
+                                Close
+                              </Button>
+                            </DialogClose>
                             <Button
-                              variant="outline"
+                              type="button"
+                              onClick={saveTransaction}
                               className="w-full md:w-auto"
                             >
-                              Close
+                              Save Items
                             </Button>
-                          </DialogClose>
-                          <Button
-                            type="button"
-                            onClick={saveTransaction}
-                            className="w-full md:w-auto"
-                          >
-                            Save Items
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
                   </div>
+                </div>
+              </div>
+
+              <div>
+                <h2>More Details</h2>
+
+                <div className="w-full h-24 p-2 rounded-md">
+                  <Table>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell className="text-xs">Status</TableCell>
+                        <TableCell className="text-xs text-right">
+                          {farmer.civil_status}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="text-xs">Religion</TableCell>
+                        <TableCell className="text-xs text-right">
+                          {farmer.religion}
+                        </TableCell>
+                      </TableRow>
+
+                      <TableRow>
+                        <TableCell className="text-xs">
+                          Highest Educational Attainment
+                        </TableCell>
+                        <TableCell className="text-xs text-right">
+                          {farmer.highest_formal_education}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="text-xs">
+                          With Disability
+                        </TableCell>
+                        <TableCell className="text-xs text-right">
+                          {farmer.is_with_disability ? "Yes" : "No"}
+                        </TableCell>
+                      </TableRow>
+
+                      <TableRow>
+                        <TableCell className="text-xs">4Ps Member</TableCell>
+                        <TableCell className="text-xs text-right">
+                          {farmer.is_4ps_beneficiary ? "Yes" : "No"}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="text-xs">Cooperative</TableCell>
+                        <TableCell className="text-xs text-right">
+                          {farmer.cooperative}
+                        </TableCell>
+                      </TableRow>
+
+                      <TableRow>
+                        <TableCell className="text-xs">
+                          Contact Person
+                        </TableCell>
+                        <TableCell className="text-xs text-right">
+                          {farmer.person_to_notify_emergency}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="text-xs">
+                          Contact Person Number
+                        </TableCell>
+                        <TableCell className="text-xs text-right">
+                          {farmer.person_to_notify_emergency_contact_number}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
                 </div>
               </div>
             </div>

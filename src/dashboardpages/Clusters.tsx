@@ -93,7 +93,7 @@ const Clusters = () => {
 
   const [openCluster, setOpenCluster] = useState<Cluster | null>(null);
   const [clusterFarmers, setClusterFarmers] = useState<Farmer[]>([]);
-  const [selectedFarmer, setSelectedFarmer] = useState<number | null>(null);
+  const [selectedFarmer, setSelectedFarmer] = useState<string | null>(null);
   const [openAddDialog, setOpenAddDialog] = useState(false);
   const [newCluster, setNewCluster] = useState<Omit<Cluster, "id">>({
     cluster_name: "",
@@ -171,6 +171,7 @@ const Clusters = () => {
   };
 
   const handleAddFarmerToCluster = async () => {
+    console.log("Selected Farmer ID:", selectedFarmer);
     if (!openCluster || !selectedFarmer) return;
 
     const { error } = await supabase.from("farmer_clusters").insert([
@@ -379,7 +380,7 @@ const Clusters = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Left Panel */}
             <div className="w-full">
-              <Select onValueChange={(val) => setSelectedFarmer(Number(val))}>
+              <Select onValueChange={(val) => setSelectedFarmer(val)}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select Farmer" />
                 </SelectTrigger>

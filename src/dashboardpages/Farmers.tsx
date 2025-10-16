@@ -3,8 +3,11 @@ import supabase from "@/db/config";
 import { toast } from "sonner";
 import DeleteFarmerDataDialog from "@/dashboardComponents/DeleteFarmerDataDialog";
 import EditFarmerData from "@/dashboardComponents/EditFarmerData";
-import AddFarmerDialog from "@/dashboardComponents/AddFarmerDialog";
 import PrintQRCodes from "@/dashboardComponents/PrintQRCodes";
+import AddCornFarmerDialog from "@/dashboardComponents/AddCornFarmerDialog";
+import AddCropsFarmerDialog from "@/dashboardComponents/AddCropsFarmerDialog";
+import AddLiveStockFarmerDialog from "@/dashboardComponents/AddLiveStockFarmerDialog";
+import AddFisheryFarmerDialog from "@/dashboardComponents/AddFisheryFarmerDialog";
 import {
   Table,
   TableBody,
@@ -51,6 +54,7 @@ export default function Farmers() {
   const [loading, setLoading] = useState(true);
   const [openEditFarmerDialog, setOpenEditFarmerDialog] = useState(false);
   const [openDeleteFarmerDialog, setOpenDeleteFarmerDialog] = useState(false);
+  const [adminCategory, setAdminCategory] = useState<string | null>(null);
   const [editFarmer, setEditFarmer] = useState<Farmer | null>(null);
   const [deleteFarmer, setDeleteFarmer] = useState<Farmer | null>(null);
   const [filters, setFilters] = useState({
@@ -74,8 +78,22 @@ export default function Farmers() {
     setLoading(false);
   };
 
+  // Fetch data automatically
+  const fetchUserLoginData = async () => {
+    setLoading(true);
+    const { data, error } = await supabase.auth.getUser();
+    if (error) {
+      toast.error("Error fetching farmers data.");
+      console.error(error);
+    } else {
+      setAdminCategory(data?.user?.user_metadata?.category || null);
+    }
+    setLoading(false);
+  };
+
   useEffect(() => {
     fetchFarmers();
+    fetchUserLoginData();
   }, []);
 
   const handleFilterChange = (field: string, value: string) => {
@@ -189,9 +207,31 @@ export default function Farmers() {
 
         <div className="flex items-center gap-2">
           <PrintQRCodes farmers={farmers} />
-          <AddFarmerDialog
+          {/* <AddFarmerDialog
             onSuccess={() => handleSuccess("Farmer added successfully!")}
-          />
+          /> */}
+
+          {adminCategory === "corn" ||
+            (adminCategory === "all" && (
+              <AddCornFarmerDialog
+                onSuccess={() => handleSuccess("Farmer added successfully!")}
+              />
+            ))}
+          {adminCategory === "crops" && (
+            <AddFisheryFarmerDialog
+              onSuccess={() => handleSuccess("Farmer added successfully!")}
+            />
+          )}
+          {adminCategory === "livestock" && (
+            <AddLiveStockFarmerDialog
+              onSuccess={() => handleSuccess("Farmer added successfully!")}
+            />
+          )}
+          {adminCategory === "fishery" && (
+            <AddCropsFarmerDialog
+              onSuccess={() => handleSuccess("Farmer added successfully!")}
+            />
+          )}
         </div>
       </div>
 

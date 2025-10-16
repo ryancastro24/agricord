@@ -20,6 +20,7 @@ import FarmerAttendance from "./dashboardpages/FarmerAttendance";
 import ChairmanItemReturn from "./dashboardpages/ChairmanItemReturn";
 import { AuthProvider } from "./dashboardComponents/AuthContext";
 import GenerateItemPDF from "./dashboardComponents/GenerateItemPDF";
+import MachineryInventory from "./dashboardpages/MachineryInventory";
 import { Toaster } from "sonner";
 const router = createBrowserRouter([
   {
@@ -99,6 +100,11 @@ const router = createBrowserRouter([
       {
         path: "/dashboard/item-pdf/:id",
         element: <GenerateItemPDF />,
+      },
+
+      {
+        path: "machinery_inventory",
+        element: <MachineryInventory />,
       },
     ],
   },

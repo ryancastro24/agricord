@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import supabase from "@/db/config";
-import EditFarmerData from "@/dashboardComponents/EditFarmerData";
 import AddItemsDialog from "@/dashboardComponents/AddItemsDialog";
 import ItemReturnsDialog from "@/dashboardComponents/ItemReturnsDialog";
 import QRCode from "qrcode";
@@ -33,16 +32,26 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import DeleteItemDialog from "@/dashboardComponents/DeleteItemDialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 
 export default function Inventory() {
   const [items, setItems] = useState<any[]>([]);
   const [itemReturns, setItemReturns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [openEditFarmerDialog, setOpenEditFarmerDialog] = useState(false);
+  const [openEditDialog, setOpenEditDialog] = useState(false);
   const [openDeleteItemDialog, setOpenDeleteItemDialog] = useState(false);
-  const [editFarmer, setEditFarmer] = useState<any>(null);
+  const [editItem, setEditItem] = useState<any>(null);
   const [deleteItem, setDeleteItem] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
 
   const [filters, setFilters] = useState({
     type: "",
@@ -51,34 +60,34 @@ export default function Inventory() {
 
   // ✅ Fetch data automatically on mount
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const [itemsRes, returnsRes] = await Promise.all([
-          supabase.from("items").select("*"),
-          supabase.from("item_returns").select(`
-            id,
-            reason,
-            quantity,
-            created_at,
-            status,
-            farmers:farmer_id ( firstname, lastname ),
-            clusters:cluster_id ( cluster_name ),
-            items:item_id ( name,id )
-          `),
-        ]);
-
-        setItems(itemsRes.data || []);
-        setItemReturns(returnsRes.data || []);
-      } catch (err) {
-        console.error("Error loading data:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchData();
   }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [itemsRes, returnsRes] = await Promise.all([
+        supabase.from("items").select("*"),
+        supabase.from("item_returns").select(`
+          id,
+          reason,
+          quantity,
+          created_at,
+          status,
+          farmers:farmer_id ( firstname, lastname ),
+          clusters:cluster_id ( cluster_name ),
+          items:item_id ( name,id )
+        `),
+      ]);
+
+      setItems(itemsRes.data || []);
+      setItemReturns(returnsRes.data || []);
+    } catch (err) {
+      console.error("Error loading data:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleFilterChange = (field: string, value: string) => {
     setFilters({ ...filters, [field]: value });
@@ -181,6 +190,33 @@ export default function Inventory() {
     }
 
     doc.save(`${item.name || "item"}_qrcards.pdf`);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editItem) return;
+    try {
+      setSaving(true);
+      const { error } = await supabase
+        .from("items")
+        .update({
+          name: editItem.name,
+          description: editItem.description,
+          type: editItem.type,
+          quantity: editItem.quantity,
+        })
+        .eq("id", editItem.id);
+
+      if (error) throw error;
+
+      toast.success("Item updated successfully!");
+      setOpenEditDialog(false);
+      fetchData();
+    } catch (err) {
+      console.error("Update failed:", err);
+      toast.error("Failed to update item.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   // 🦴 Skeleton Loader
@@ -301,8 +337,8 @@ export default function Inventory() {
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         onClick={() => {
-                          setOpenEditFarmerDialog(true);
-                          setEditFarmer(item);
+                          setEditItem(item);
+                          setOpenEditDialog(true);
                         }}
                       >
                         Edit
@@ -327,11 +363,63 @@ export default function Inventory() {
           </TableBody>
         </Table>
 
-        <EditFarmerData
-          openEditFarmerDialog={openEditFarmerDialog}
-          setOpenEditFarmerDialog={setOpenEditFarmerDialog}
-          editFarmer={editFarmer}
-        />
+        {/* ✏️ Edit Dialog */}
+        <Dialog open={openEditDialog} onOpenChange={setOpenEditDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Edit Item</DialogTitle>
+            </DialogHeader>
+            {editItem && (
+              <div className="space-y-3">
+                <div>
+                  <Label>Name</Label>
+                  <Input
+                    value={editItem.name}
+                    onChange={(e) =>
+                      setEditItem({ ...editItem, name: e.target.value })
+                    }
+                  />
+                </div>
+                <div>
+                  <Label>Description</Label>
+                  <Input
+                    value={editItem.description || ""}
+                    onChange={(e) =>
+                      setEditItem({ ...editItem, description: e.target.value })
+                    }
+                  />
+                </div>
+                <div>
+                  <Label>Type</Label>
+                  <Input
+                    value={editItem.type || ""}
+                    onChange={(e) =>
+                      setEditItem({ ...editItem, type: e.target.value })
+                    }
+                  />
+                </div>
+                <div>
+                  <Label>Quantity</Label>
+                  <Input
+                    type="number"
+                    value={editItem.quantity || 0}
+                    onChange={(e) =>
+                      setEditItem({
+                        ...editItem,
+                        quantity: parseInt(e.target.value) || 0,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button onClick={handleSaveEdit} disabled={saving}>
+                {saving ? "Saving..." : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <DeleteItemDialog
           openDeleteItemDialog={openDeleteItemDialog}

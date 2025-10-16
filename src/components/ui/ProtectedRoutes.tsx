@@ -3,7 +3,7 @@ import { Navigate } from "react-router-dom";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import supabase from "@/db/config";
-
+import AllPageLoading from "@/dashboardComponents/AllPageLoading";
 interface ProtectedRouteProps {
   children: ReactNode;
 }
@@ -31,7 +31,7 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     };
   }, []);
 
-  if (loading) return <p>Loading...</p>;
+  if (loading) return <AllPageLoading />;
 
   // ✅ Redirect if not logged in
   if (!isAuthenticated) return <Navigate to="/" replace />;

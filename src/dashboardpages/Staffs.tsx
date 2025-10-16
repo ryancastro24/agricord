@@ -75,6 +75,7 @@ const Staffs = () => {
     contact: "",
     address: "",
     profile_picture: "",
+    category: "",
   });
 
   // ✅ Initialize data
@@ -108,6 +109,7 @@ const Staffs = () => {
       contact,
       role,
       profile_picture,
+      category,
     } = newStaff;
 
     if (!firstname || !lastname || !email || !password) {
@@ -148,6 +150,7 @@ const Staffs = () => {
         role,
         email_verified: false,
         is_active: true,
+        category,
       });
 
       if (insertError) throw insertError;
@@ -162,6 +165,7 @@ const Staffs = () => {
         contact: "",
         address: "",
         profile_picture: "",
+        category: "",
       });
 
       // Refresh users
@@ -250,128 +254,187 @@ const Staffs = () => {
           <DialogTrigger asChild>
             <Button>Add Staff</Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+
+          <DialogContent className="max-w-3xl">
             <DialogHeader>
               <DialogTitle>Add New Staff</DialogTitle>
             </DialogHeader>
 
-            <div className="space-y-4">
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <tbody>
-                    {[
-                      ["Email", "email"],
-                      ["Password", "password"],
-                      ["First Name", "firstname"],
-                      ["Last Name", "lastname"],
-                      ["Contact", "contact"],
-                      ["Address", "address"],
-                    ].map(([label, key]) => (
-                      <tr key={key}>
-                        <td className="p-2 w-1/3">
-                          <Label>{label}</Label>
-                        </td>
-                        <td className="p-2">
-                          <Input
-                            type={key === "password" ? "password" : "text"}
-                            value={(newStaff as any)[key]}
-                            onChange={(e) =>
-                              setNewStaff({
-                                ...newStaff,
-                                [key]: e.target.value,
-                              })
-                            }
-                          />
-                        </td>
-                      </tr>
-                    ))}
-
-                    {/* Role */}
-                    <tr>
-                      <td className="p-2">
-                        <Label>Role</Label>
-                      </td>
-                      <td className="p-2">
-                        <Select
-                          value={newStaff.role}
-                          onValueChange={(val) =>
-                            setNewStaff({ ...newStaff, role: val })
-                          }
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select role" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="staff">Staff</SelectItem>
-                            <SelectItem value="chairman">Chairman</SelectItem>
-                            <SelectItem value="admin">Admin</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </td>
-                    </tr>
-
-                    {/* Profile Picture */}
-                    <tr>
-                      <td className="p-2">
-                        <Label>Profile Picture</Label>
-                      </td>
-                      <td className="p-2 flex items-center gap-3">
-                        <Dialog
-                          open={isCameraOpen}
-                          onOpenChange={setIsCameraOpen}
-                        >
-                          <DialogTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setIsCameraOpen(true)}
-                            >
-                              <Camera className="w-4 h-4 mr-1" /> Take Picture
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-md flex flex-col items-center gap-4">
-                            <Webcam
-                              audio={false}
-                              ref={webcamRef}
-                              screenshotFormat="image/jpeg"
-                              className="rounded-md w-full aspect-video"
-                              videoConstraints={{ facingMode: "user" }}
-                            />
-                            <Button className="w-full" onClick={capture}>
-                              Capture
-                            </Button>
-                          </DialogContent>
-                        </Dialog>
-
-                        {newStaff.profile_picture && (
-                          <img
-                            src={newStaff.profile_picture}
-                            alt="Preview"
-                            className="w-12 h-12 rounded-full object-cover border"
-                          />
-                        )}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              {/* Email */}
+              <div>
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  placeholder="Enter staff email"
+                  value={newStaff.email}
+                  onChange={(e) =>
+                    setNewStaff({ ...newStaff, email: e.target.value })
+                  }
+                />
               </div>
 
-              <div className="pt-4">
-                <Button
-                  className="w-full"
-                  onClick={handleCreateStaff}
-                  disabled={submitting}
+              {/* Password */}
+              <div>
+                <Label>Password</Label>
+                <Input
+                  type="password"
+                  placeholder="Enter password"
+                  value={newStaff.password}
+                  onChange={(e) =>
+                    setNewStaff({ ...newStaff, password: e.target.value })
+                  }
+                />
+              </div>
+
+              {/* First Name */}
+              <div>
+                <Label>First Name</Label>
+                <Input
+                  type="text"
+                  placeholder="Enter first name"
+                  value={newStaff.firstname}
+                  onChange={(e) =>
+                    setNewStaff({ ...newStaff, firstname: e.target.value })
+                  }
+                />
+              </div>
+
+              {/* Last Name */}
+              <div>
+                <Label>Last Name</Label>
+                <Input
+                  type="text"
+                  placeholder="Enter last name"
+                  value={newStaff.lastname}
+                  onChange={(e) =>
+                    setNewStaff({ ...newStaff, lastname: e.target.value })
+                  }
+                />
+              </div>
+
+              {/* Contact */}
+              <div>
+                <Label>Contact</Label>
+                <Input
+                  type="text"
+                  placeholder="Enter contact number"
+                  value={newStaff.contact}
+                  onChange={(e) =>
+                    setNewStaff({ ...newStaff, contact: e.target.value })
+                  }
+                />
+              </div>
+
+              {/* Address */}
+              <div>
+                <Label>Address</Label>
+                <Input
+                  type="text"
+                  placeholder="Enter address"
+                  value={newStaff.address}
+                  onChange={(e) =>
+                    setNewStaff({ ...newStaff, address: e.target.value })
+                  }
+                />
+              </div>
+
+              {/* Role */}
+              <div>
+                <Label>Role</Label>
+                <Select
+                  value={newStaff.role}
+                  onValueChange={(val) =>
+                    setNewStaff({ ...newStaff, role: val })
+                  }
                 >
-                  {submitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}
-                      Creating...
-                    </>
-                  ) : (
-                    "Create"
-                  )}
-                </Button>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="staff">Staff</SelectItem>
+                    <SelectItem value="chairman">Chairman</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
+
+              {/* Category */}
+              <div>
+                <Label>Category</Label>
+                <Select
+                  value={newStaff.category}
+                  onValueChange={(val) =>
+                    setNewStaff({ ...newStaff, category: val })
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="corn">Corn</SelectItem>
+                    <SelectItem value="crops">Crops</SelectItem>
+                    <SelectItem value="fishery">Fishery</SelectItem>
+                    <SelectItem value="livestock">Livestock</SelectItem>
+                    <SelectItem value="machinery">Machinery</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Profile Picture */}
+              <div className="md:col-span-2">
+                <Label>Profile Picture</Label>
+                <div className="flex items-center gap-3 mt-2">
+                  <Dialog open={isCameraOpen} onOpenChange={setIsCameraOpen}>
+                    <DialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsCameraOpen(true)}
+                      >
+                        <Camera className="w-4 h-4 mr-1" /> Take Picture
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-md flex flex-col items-center gap-4">
+                      <Webcam
+                        audio={false}
+                        ref={webcamRef}
+                        screenshotFormat="image/jpeg"
+                        className="rounded-md w-full aspect-video"
+                        videoConstraints={{ facingMode: "user" }}
+                      />
+                      <Button className="w-full" onClick={capture}>
+                        Capture
+                      </Button>
+                    </DialogContent>
+                  </Dialog>
+
+                  {newStaff.profile_picture && (
+                    <img
+                      src={newStaff.profile_picture}
+                      alt="Preview"
+                      className="w-12 h-12 rounded-full object-cover border"
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-6">
+              <Button
+                className="w-full"
+                onClick={handleCreateStaff}
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}
+                    Creating...
+                  </>
+                ) : (
+                  "Create"
+                )}
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
