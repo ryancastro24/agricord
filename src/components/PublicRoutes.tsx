@@ -10,18 +10,49 @@ interface PublicRouteProps {
 
 const PublicRoute = ({ children }: PublicRouteProps) => {
   const [loading, setLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [redirectPath, setRedirectPath] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setIsAuthenticated(!!data.session);
-      setLoading(false);
-    });
+    const checkAuthAndRole = async () => {
+      try {
+        // Check for an active session
+        const { data: sessionData } = await supabase.auth.getSession();
+        const session = sessionData?.session;
+
+        if (!session) {
+          setLoading(false);
+          return;
+        }
+
+        // Fetch the authenticated user
+        const { data: userData, error } = await supabase.auth.getUser();
+        if (error || !userData.user) {
+          console.error("Error fetching user:", error);
+          setLoading(false);
+          return;
+        }
+
+        // Get custom role from user metadata (adjust field name if different)
+        const role = userData.user.user_metadata?.role;
+
+        // Redirect based on role
+        if (role === "chairman") setRedirectPath("/dashboard/scanner");
+        else if (role === "staff") setRedirectPath("/dashboard/cluster");
+        else if (role === "admin") setRedirectPath("/dashboard");
+        else setRedirectPath("/dashboard"); // default
+      } catch (err) {
+        console.error("Error checking auth:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuthAndRole();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAuthenticated(!!session);
+    } = supabase.auth.onAuthStateChange(() => {
+      checkAuthAndRole();
     });
 
     return () => {
@@ -31,9 +62,10 @@ const PublicRoute = ({ children }: PublicRouteProps) => {
 
   if (loading) return <p>Loading...</p>;
 
-  // ✅ If already logged in, redirect to dashboard
-  if (isAuthenticated) return <Navigate to="/dashboard" replace />;
+  // ✅ Redirect if logged in and role is found
+  if (redirectPath) return <Navigate to={redirectPath} replace />;
 
+  // 🚪 If not authenticated, show public page (e.g., login/register)
   return <>{children}</>;
 };
 

@@ -45,7 +45,7 @@ interface Cluster {
   category: string;
   chairman_id: string;
   barangay: string;
-  chairman?: { firstname: string; lastname: string };
+  users?: { firstname: string; lastname: string };
 }
 
 const categories = ["Rice", "Corn", "Vegetables", "Root Crops"];
@@ -56,7 +56,7 @@ export async function loader() {
     const [chairmansRes, clustersRes, farmersRes, usersRes] = await Promise.all(
       [
         supabase.from("chairmans").select("*"),
-        supabase.from("clusters").select("*"),
+        supabase.from("clusters").select(`*,users(*)`),
         supabase.from("farmers").select("*"),
         supabase.from("users").select("*"),
       ]
@@ -103,6 +103,7 @@ const Clusters = () => {
   });
   const [chairmanSearch, setChairmanSearch] = useState("");
 
+  console.log("Loaded clusters:", clusters);
   // ✅ Simulate loader delay (show skeleton until data is ready)
   useEffect(() => {
     if (clusters && farmers) {
@@ -265,7 +266,9 @@ const Clusters = () => {
               </p>
               <p className="text-sm">
                 <strong>Chairman:</strong>{" "}
-                {cluster.chairman_id ? "Sample" : "N/A"}
+                {cluster.users
+                  ? cluster.users.firstname + " " + cluster.users?.lastname
+                  : "N/A"}
               </p>
               <p className="text-sm">
                 <strong>Barangay:</strong> {cluster.barangay}

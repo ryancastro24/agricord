@@ -5,45 +5,69 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { HiOutlineMail } from "react-icons/hi";
 import { MdLockOutline } from "react-icons/md";
-import { Loader2 } from "lucide-react"; // ✅ spinner icon
+import { Loader2 } from "lucide-react";
 import supabase from "@/db/config";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
-  const [loading, setLoading] = useState(false); // ✅ loading state
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true); // ✅ start loading
+    setLoading(true);
+    setErrorMsg("");
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (error) {
-      setErrorMsg(error.message);
-      setLoading(false); // ✅ stop loading if failed
-    } else {
-      console.log("✅ Logged in user:", data.user);
-      setErrorMsg("");
-      navigate("/dashboard/", { replace: true });
+      if (error) {
+        setErrorMsg(error.message);
+        setLoading(false);
+        return;
+      }
+
+      const user = data.user;
+      if (!user) {
+        setErrorMsg("Login failed. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      // ✅ Retrieve role from user metadata
+      const role = user.user_metadata?.role;
+
+      // ✅ Role-based redirect
+      if (role === "chairman")
+        navigate("/dashboard/scanner", { replace: true });
+      else if (role === "staff")
+        navigate("/dashboard/cluster", { replace: true });
+      else if (role === "admin") navigate("/dashboard/", { replace: true });
+      else navigate("/dashboard/", { replace: true }); // fallback
+    } catch (err: any) {
+      console.error("Unexpected login error:", err);
+      setErrorMsg("An unexpected error occurred. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-[url(./src/assets/farming.jpg)] bg-cover bg-center">
-      {/* Main Card */}
       <div className="bg-white flex flex-col items-center p-8 rounded-2xl shadow-xl w-[90%] max-w-md sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-md 2xl:max-w-lg sm:h-auto md:h-auto">
-        {/* Logo / Avatar */}
+        {/* Logo Placeholder */}
         <div className="w-[80px] h-[80px] bg-gray-300 rounded-full mb-6"></div>
 
-        {/* Error message */}
+        {/* Error Message */}
         {errorMsg && (
-          <p className="text-red-500 text-sm text-center mb-4">{errorMsg}</p>
+          <p className="text-red-500 text-sm text-center mb-4">
+            {errorMsg} please try again
+          </p>
         )}
 
         {/* Form */}

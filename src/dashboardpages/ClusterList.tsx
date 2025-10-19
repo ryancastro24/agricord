@@ -43,12 +43,15 @@ const ClusterList = () => {
     const fetchFarmers = async () => {
       if (!user?.id) return;
 
+      console.log("Fetching farmers for user ID:", user.id);
+
       // Step 1: Get cluster(s) owned by this user
       const { data: clusters, error: clusterError } = await supabase
         .from("clusters")
         .select("id, cluster_name")
-        .eq("chairman_id", user.id)
-        .single(); // assuming 1 cluster per user; remove .single() if multiple
+        .eq("chairman_id", user.id);
+
+      console.log("Clusters fetched:", clusters);
 
       if (clusterError) {
         console.error("Error fetching clusters:", clusterError);
@@ -57,29 +60,29 @@ const ClusterList = () => {
 
       if (!clusters) return;
 
-      setClusterName(clusters.cluster_name);
+      setClusterName(clusters[0].cluster_name);
 
       // Step 2: Get farmer clusters + farmer details
       const { data: farmerClusters, error: farmerError } = await supabase
         .from("farmer_clusters")
         .select(
           `
-          farmer_id,
-          farmers (
-            id,
-            id_number,
-            firstname,
-            lastname,
-            contact_number,
-           purok,
-           barangay,
-           city,
-           province
-
-          )
-        `
+           farmers:farmer_id 
+           ( id, 
+            id_number, 
+            firstname, 
+            lastname, 
+            contact_number, 
+            street, 
+            barangay, 
+            city, 
+            province )`
         )
-        .eq("cluster_id", clusters.id);
+        .eq("cluster_id", clusters[0].id);
+
+      console.log("Cluster ID:", clusters[0].id);
+
+      console.log("Farmer Clusters:", farmerClusters);
 
       if (farmerError) {
         console.error("Error fetching farmer clusters:", farmerError);

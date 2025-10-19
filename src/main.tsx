@@ -21,8 +21,13 @@ import ChairmanItemReturn from "./dashboardpages/ChairmanItemReturn";
 import { AuthProvider } from "./dashboardComponents/AuthContext";
 import GenerateItemPDF from "./dashboardComponents/GenerateItemPDF";
 import MachineryInventory from "./dashboardpages/MachineryInventory";
+import BorrowMachine from "./dashboardpages/BorrowMachine";
 import { Toaster } from "sonner";
+import MachineBorrowSummary from "./dashboardpages/MachineBorrowSummary";
+import NotFoundPage from "./pages/NotfoundPages"; // ✅ 404 Page
+
 const router = createBrowserRouter([
+  // 👇 Public Login Route
   {
     path: "/",
     element: (
@@ -32,6 +37,7 @@ const router = createBrowserRouter([
     ),
   },
 
+  // 👇 Dashboard Base Layout (any logged-in user)
   {
     path: "/dashboard",
     element: (
@@ -41,73 +47,136 @@ const router = createBrowserRouter([
     ),
     loader: DashboardLoader,
     children: [
+      // 👇 CHAIRMAN ROUTES
       {
         path: "scanner",
         element: (
-          <ProtectedRoute>
-            {" "}
+          <ProtectedRoute allowedRoles={["chairman"]}>
             <ScanFarmer />
+          </ProtectedRoute>
+        ),
+        loader: ScanFarmerLoader,
+      },
+      {
+        path: "farmer_attendance",
+        element: (
+          <ProtectedRoute allowedRoles={["chairman"]}>
+            <FarmerAttendance />
           </ProtectedRoute>
         ),
       },
       {
-        path: "scanner/:farmerId",
-        element: <ScanFarmer />,
-        loader: ScanFarmerLoader,
+        path: "cluster_list",
+        element: (
+          <ProtectedRoute allowedRoles={["chairman"]}>
+            <ClusterList />
+          </ProtectedRoute>
+        ),
       },
       {
+        path: "chairman_item_return",
+        element: (
+          <ProtectedRoute allowedRoles={["chairman"]}>
+            <ChairmanItemReturn />
+          </ProtectedRoute>
+        ),
+      },
+
+      // 👇 ADMIN ROUTES
+      {
         path: "farmers",
-        element: <Farmers />,
+        element: (
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <Farmers />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "staffs",
-        element: <Staffs />,
+        element: (
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <Staffs />
+          </ProtectedRoute>
+        ),
         loader: StaffsLoader,
       },
-
       {
-        path: "chairmans",
-        element: <Chairmans />,
+        path: "machinery_inventory",
+        element: (
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <MachineryInventory />
+          </ProtectedRoute>
+        ),
       },
+
+      // 👇 ADMIN + STAFF ROUTES
       {
         path: "clusters",
-        element: <Clusters />,
+        element: (
+          <ProtectedRoute allowedRoles={["admin", "staff"]}>
+            <Clusters />
+          </ProtectedRoute>
+        ),
         loader: ClusterLoader,
       },
       {
         path: "inventory",
-        element: <Inventory />,
+        element: (
+          <ProtectedRoute allowedRoles={["admin", "staff"]}>
+            <Inventory />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "transactions",
-        element: <Transactions />,
+        element: (
+          <ProtectedRoute allowedRoles={["admin", "staff"]}>
+            <Transactions />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "machinery_borrow",
+        element: (
+          <ProtectedRoute allowedRoles={["admin", "staff"]}>
+            <BorrowMachine />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "borrow_summary",
+        element: (
+          <ProtectedRoute allowedRoles={["admin", "staff"]}>
+            <MachineBorrowSummary />
+          </ProtectedRoute>
+        ),
       },
 
+      // 👇 COMMON ROUTES (ALL ROLES)
       {
-        path: "farmer_attendance",
-        element: <FarmerAttendance />,
+        path: "chairmans",
+        element: (
+          <ProtectedRoute allowedRoles={["admin", "staff"]}>
+            <Chairmans />
+          </ProtectedRoute>
+        ),
       },
       {
-        path: "cluster_list",
-        element: <ClusterList />,
+        path: "item-pdf/:id",
+        element: (
+          <ProtectedRoute allowedRoles={["admin", "staff", "chairman"]}>
+            <GenerateItemPDF />
+          </ProtectedRoute>
+        ),
       },
 
-      {
-        path: "chairman_item_return",
-        element: <ChairmanItemReturn />,
-      },
-
-      {
-        path: "/dashboard/item-pdf/:id",
-        element: <GenerateItemPDF />,
-      },
-
-      {
-        path: "machinery_inventory",
-        element: <MachineryInventory />,
-      },
+      // ✅ Catch-all inside dashboard
+      { path: "*", element: <NotFoundPage /> },
     ],
   },
+
+  // ✅ Global Catch-all 404
+  { path: "*", element: <NotFoundPage /> },
 ]);
 
 createRoot(document.getElementById("root")!).render(

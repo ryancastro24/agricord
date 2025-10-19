@@ -23,7 +23,7 @@ interface Farmer {
   id_number: string;
   firstname: string;
   lastname: string;
-  purok: string;
+  street: string;
   barangay: string;
   city: string;
   province: string;
@@ -77,7 +77,7 @@ const FarmerAttendance = () => {
                 id_number,
                 firstname,
                 lastname,
-                purok,
+                street,
                 barangay,
                 city,
                 province
@@ -185,7 +185,7 @@ const FarmerAttendance = () => {
                     <TableCell>{a.farmers.firstname}</TableCell>
                     <TableCell>{a.farmers.lastname}</TableCell>
                     <TableCell>
-                      {`${a.farmers.purok}, ${a.farmers.barangay}, ${a.farmers.city}, ${a.farmers.province}`}
+                      {`${a.farmers.street}, ${a.farmers.barangay}, ${a.farmers.city}, ${a.farmers.province}`}
                     </TableCell>
                     <TableCell>{validDate}</TableCell>
                   </TableRow>
