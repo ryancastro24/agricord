@@ -24,8 +24,7 @@ import MachineryInventory from "./dashboardpages/MachineryInventory";
 import BorrowMachine from "./dashboardpages/BorrowMachine";
 import { Toaster } from "sonner";
 import MachineBorrowSummary from "./dashboardpages/MachineBorrowSummary";
-import NotFoundPage from "./pages/NotfoundPages"; // ✅ 404 Page
-
+import NotFoundPage from "./pages/NotfoundPages";
 const router = createBrowserRouter([
   // 👇 Public Login Route
   {
