@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 
-const NotFoundPage = () => {
+const NotfoundPages = () => {
   const navigate = useNavigate();
 
   return (
@@ -19,4 +19,4 @@ const NotFoundPage = () => {
   );
 };
 
-export default NotFoundPage;
+export default NotfoundPages;

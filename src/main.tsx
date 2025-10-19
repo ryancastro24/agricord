@@ -24,7 +24,7 @@ import MachineryInventory from "./dashboardpages/MachineryInventory";
 import BorrowMachine from "./dashboardpages/BorrowMachine";
 import { Toaster } from "sonner";
 import MachineBorrowSummary from "./dashboardpages/MachineBorrowSummary";
-import NotFoundPage from "./pages/NotfoundPages";
+import NotfoundPages from "./pages/NotfoundPages";
 const router = createBrowserRouter([
   // 👇 Public Login Route
   {
@@ -170,12 +170,12 @@ const router = createBrowserRouter([
       },
 
       // ✅ Catch-all inside dashboard
-      { path: "*", element: <NotFoundPage /> },
+      { path: "*", element: <NotfoundPages /> },
     ],
   },
 
   // ✅ Global Catch-all 404
-  { path: "*", element: <NotFoundPage /> },
+  { path: "*", element: <NotfoundPages /> },
 ]);
 
 createRoot(document.getElementById("root")!).render(
