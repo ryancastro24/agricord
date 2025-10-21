@@ -4,14 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { PiBookmarks } from "react-icons/pi";
 import supabase from "@/db/config";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+
 import {
   LuUsers,
   LuUserPen,
@@ -19,7 +12,6 @@ import {
   LuPackageCheck,
 } from "react-icons/lu";
 import { useLoaderData } from "react-router-dom";
-import { PiBellRingingBold } from "react-icons/pi";
 import { MdOutlineInventory } from "react-icons/md";
 import DashboardContent from "@/dashboardpages/DashboardContent";
 import { useState } from "react";
@@ -156,9 +148,9 @@ const Dashboard = () => {
   const menuItems = allMenuItems.filter((item) => item.roles.includes(role));
 
   return (
-    <div className="flex h-full w-full font-[Montserrat]">
+    <div className="flex h-full w-full font-[Montserrat] ">
       {/* Sidebar */}
-      <div className="hidden md:flex flex-col w-60 border-r border-slate-200 p-2 sticky top-0 h-screen bg-white">
+      <div className="hidden md:flex flex-col w-60 border-r border-slate-200  bg-white p-2 sticky top-0 h-screen ">
         <div className="rounded bg-[#e3e4d4] w-full h-14 p-2 flex items-center justify-between">
           <div className="flex items-center">
             <Avatar>
@@ -267,23 +259,6 @@ const Dashboard = () => {
               <Menu />
             </Button>
 
-            <Dialog>
-              <DialogTrigger>
-                <Button className="relative" size="icon" variant="secondary">
-                  <PiBellRingingBold className="animate-bounce" />
-                  <div className="w-2 h-2 rounded-full absolute bottom-0 left-0 bg-red-500"></div>
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Notifications</DialogTitle>
-                  <DialogDescription>
-                    No new notifications available.
-                  </DialogDescription>
-                </DialogHeader>
-              </DialogContent>
-            </Dialog>
-
             {/* Logout Confirmation */}
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -317,7 +292,7 @@ const Dashboard = () => {
         </div>
 
         {/* Page Content */}
-        <div className="flex-1 h-full p-2 overflow-y-auto">
+        <div className="flex-1 h-full  p-2 overflow-y-auto">
           <div className="w-full h-full shadow-xl shadow-[#00000027] md:rounded-lg md:p-4">
             {pathname === "/dashboard/" ? <DashboardContent /> : <Outlet />}
           </div>

@@ -134,14 +134,19 @@ const ClusterList = () => {
 
       {/* Table */}
       <div className="overflow-x-auto rounded-lg border">
-        <Table>
+        <Table className="min-w-full">
           <TableHeader>
             <TableRow>
               <TableHead>ID Number</TableHead>
               <TableHead>Firstname</TableHead>
               <TableHead>Lastname</TableHead>
-              <TableHead>Contact Number</TableHead>
-              <TableHead>Address</TableHead>
+
+              {/* Hidden on mobile */}
+              <TableHead className="hidden md:table-cell">
+                Contact Number
+              </TableHead>
+              <TableHead className="hidden md:table-cell">Address</TableHead>
+
               <TableHead className="text-center">Action</TableHead>
             </TableRow>
           </TableHeader>
@@ -151,11 +156,16 @@ const ClusterList = () => {
                 <TableCell>{farmer.id_number}</TableCell>
                 <TableCell>{farmer.firstname}</TableCell>
                 <TableCell>{farmer.lastname}</TableCell>
-                <TableCell>{farmer.contact_number}</TableCell>
-                <TableCell>
+
+                {/* Hide on mobile view */}
+                <TableCell className="hidden md:table-cell">
+                  {farmer.contact_number}
+                </TableCell>
+                <TableCell className="hidden md:table-cell">
                   {farmer.purok} {farmer.barangay} {farmer.city}{" "}
                   {farmer.province}
                 </TableCell>
+
                 <TableCell className="text-center">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -163,7 +173,23 @@ const ClusterList = () => {
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
+
                     <DropdownMenuContent align="end">
+                      {/* Show hidden info inside dropdown for mobile */}
+                      <div className="block md:hidden px-2 py-1 border-b text-xs text-gray-500">
+                        More Info
+                      </div>
+                      <DropdownMenuItem className="block md:hidden text-sm text-gray-700">
+                        📞 {farmer.contact_number || "No contact"}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="block md:hidden text-sm text-gray-700 whitespace-normal">
+                        📍{" "}
+                        {`${farmer.purok || ""} ${farmer.barangay || ""} ${
+                          farmer.city || ""
+                        } ${farmer.province || ""}`}
+                      </DropdownMenuItem>
+
+                      {/* Original actions retained */}
                       <DropdownMenuItem
                         onClick={() => alert(`Report ${farmer.firstname}`)}
                       >

@@ -653,7 +653,44 @@ const AddCornFarmerDialog: React.FC<AddCornFarmerDialogProps> = ({
         </Tabs>
 
         <DialogFooter>
-          <Button onClick={handleAddFarmer} disabled={loading}>
+          <Button
+            onClick={handleAddFarmer}
+            disabled={
+              loading ||
+              !newFarmer.id_number ||
+              !newFarmer.firstname ||
+              !newFarmer.lastname ||
+              !profileImage ||
+              !idImage ||
+              !newFarmer.government_id_number ||
+              !newFarmer.contact_number ||
+              !newFarmer.person_to_notify_emergency_contact_number ||
+              !newFarmer.person_to_notify_emergency ||
+              !newFarmer.bldg_no ||
+              !newFarmer.street ||
+              !newFarmer.barangay ||
+              !newFarmer.city ||
+              !newFarmer.province ||
+              !newFarmer.region ||
+              !newFarmer.date_of_birth ||
+              !newFarmer.sex ||
+              !newFarmer.civil_status ||
+              !newFarmer.highest_formal_education ||
+              !newFarmer.religion ||
+              !newFarmer.cooperative ||
+              !newFarmer.middlename ||
+              !newFarmer.place_of_birth ||
+              !newFarmer.contact_number ||
+              !newFarmer.person_to_notify_emergency_contact_number ||
+              !newFarmer.person_to_notify_emergency ||
+              !farmProfile.farmer_role ||
+              !farmProfile.farmer_activity ||
+              !farmProfile.kind_of_work ||
+              !farmProfile.type_of_fishing_activity ||
+              !farmProfile.gross_annual_income_last_year ||
+              !farmProfile.non_gross_annual_income_last_year
+            }
+          >
             {loading ? "Saving..." : "Save Farmer"}
           </Button>
         </DialogFooter>

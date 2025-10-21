@@ -72,6 +72,8 @@ type ScannedItem = {
 export async function loader({ params }: LoaderFunctionArgs) {
   const { farmerId } = params;
 
+  console.log("Farmer ID from params:", farmerId);
+
   if (!farmerId) {
     return { farmer: null, error: "No farmer ID provided" };
   }

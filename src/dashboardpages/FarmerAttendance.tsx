@@ -120,6 +120,15 @@ const FarmerAttendance = () => {
     return matchesName && matchesDate;
   });
 
+  // ✅ Responsive table detection
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   return (
     <div className="p-4 md:p-6 space-y-4">
       {/* Filters */}
@@ -154,23 +163,59 @@ const FarmerAttendance = () => {
 
       {/* Farmer Table */}
       <div className="overflow-x-auto rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>ID Number</TableHead>
-              <TableHead>Firstname</TableHead>
-              <TableHead>Lastname</TableHead>
-              <TableHead>Address</TableHead>
-              <TableHead>Date</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
+        {!isMobile ? (
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-4">
-                  Loading attendance...
-                </TableCell>
+                <TableHead>ID Number</TableHead>
+                <TableHead>Firstname</TableHead>
+                <TableHead>Lastname</TableHead>
+                <TableHead>Address</TableHead>
+                <TableHead>Date</TableHead>
               </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-4">
+                    Loading attendance...
+                  </TableCell>
+                </TableRow>
+              ) : filteredAttendances.length > 0 ? (
+                filteredAttendances.map((a) => {
+                  const parsedDate = a.created_at
+                    ? new Date(a.created_at)
+                    : null;
+                  const validDate =
+                    parsedDate && isValid(parsedDate)
+                      ? format(parsedDate, "PPP")
+                      : "—";
+
+                  return (
+                    <TableRow key={a.id}>
+                      <TableCell>{a.farmers.id_number}</TableCell>
+                      <TableCell>{a.farmers.firstname}</TableCell>
+                      <TableCell>{a.farmers.lastname}</TableCell>
+                      <TableCell>
+                        {`${a.farmers.street}, ${a.farmers.barangay}, ${a.farmers.city}, ${a.farmers.province}`}
+                      </TableCell>
+                      <TableCell>{validDate}</TableCell>
+                    </TableRow>
+                  );
+                })
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-4">
+                    No attendance found for this date.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        ) : (
+          <div className="flex flex-col gap-3 p-2">
+            {loading ? (
+              <p className="text-center py-4">Loading attendance...</p>
             ) : filteredAttendances.length > 0 ? (
               filteredAttendances.map((a) => {
                 const parsedDate = a.created_at ? new Date(a.created_at) : null;
@@ -180,26 +225,31 @@ const FarmerAttendance = () => {
                     : "—";
 
                 return (
-                  <TableRow key={a.id}>
-                    <TableCell>{a.farmers.id_number}</TableCell>
-                    <TableCell>{a.farmers.firstname}</TableCell>
-                    <TableCell>{a.farmers.lastname}</TableCell>
-                    <TableCell>
-                      {`${a.farmers.street}, ${a.farmers.barangay}, ${a.farmers.city}, ${a.farmers.province}`}
-                    </TableCell>
-                    <TableCell>{validDate}</TableCell>
-                  </TableRow>
+                  <div
+                    key={a.id}
+                    className="border rounded-lg p-3 bg-white shadow-sm"
+                  >
+                    <p className="font-semibold">
+                      {a.farmers.firstname} {a.farmers.lastname}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      ID: {a.farmers.id_number}
+                    </p>
+                    <p className="text-sm">
+                      {a.farmers.street}, {a.farmers.barangay}, {a.farmers.city}
+                      , {a.farmers.province}
+                    </p>
+                    <p className="text-sm mt-1 text-gray-500">{validDate}</p>
+                  </div>
                 );
               })
             ) : (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-4">
-                  No attendance found for this date.
-                </TableCell>
-              </TableRow>
+              <p className="text-center py-4">
+                No attendance found for this date.
+              </p>
             )}
-          </TableBody>
-        </Table>
+          </div>
+        )}
       </div>
     </div>
   );

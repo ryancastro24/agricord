@@ -7,6 +7,8 @@ import { HiOutlineMail } from "react-icons/hi";
 import { MdLockOutline } from "react-icons/md";
 import { Loader2 } from "lucide-react";
 import supabase from "@/db/config";
+import Logo from "@/assets/Agricord logo.png";
+import FarmingBG from "@/assets/farming.png";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
@@ -39,16 +41,14 @@ const LoginPage = () => {
         return;
       }
 
-      // ✅ Retrieve role from user metadata
       const role = user.user_metadata?.role;
 
-      // ✅ Role-based redirect
       if (role === "chairman")
         navigate("/dashboard/scanner", { replace: true });
       else if (role === "staff")
         navigate("/dashboard/cluster", { replace: true });
       else if (role === "admin") navigate("/dashboard/", { replace: true });
-      else navigate("/dashboard/", { replace: true }); // fallback
+      else navigate("/dashboard/", { replace: true });
     } catch (err: any) {
       console.error("Unexpected login error:", err);
       setErrorMsg("An unexpected error occurred. Please try again.");
@@ -58,12 +58,21 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-[url(./src/assets/farming.jpg)] bg-cover bg-center">
-      <div className="bg-white flex flex-col items-center p-8 rounded-2xl shadow-xl w-[90%] max-w-md sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-md 2xl:max-w-lg sm:h-auto md:h-auto">
-        {/* Logo Placeholder */}
-        <div className="w-[80px] h-[80px] bg-gray-300 rounded-full mb-6"></div>
+    <div
+      className="flex font-[Montserrat] items-center justify-center min-h-screen bg-cover bg-center"
+      style={{
+        backgroundImage: `url(${FarmingBG})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }}
+    >
+      <div className="bg-white flex flex-col items-center p-8 rounded shadow-xl w-[90%] sm:max-w-sm md:w-[350px] sm:h-auto md:h-auto">
+        {/* Logo */}
+        <div className="w-[200px] h-[80px] flex items-center justify-center mb-6">
+          <img src={Logo} className="w-full" alt="Agricord logo" />
+        </div>
 
-        {/* Error Message */}
+        {/* Error */}
         {errorMsg && (
           <p className="text-red-500 text-sm text-center mb-4">
             {errorMsg} please try again
@@ -75,9 +84,9 @@ const LoginPage = () => {
           onSubmit={handleLogin}
           className="w-full flex flex-col gap-5 text-sm sm:text-base"
         >
-          <div className="grid w-full items-center gap-3">
-            <Label htmlFor="email" className="flex items-center gap-1">
-              <HiOutlineMail size={15} />
+          <div className="grid w-full items-center gap-1">
+            <Label htmlFor="email" className="flex text-xs items-center gap-1">
+              <HiOutlineMail size={13} />
               Email
             </Label>
             <Input
@@ -91,9 +100,12 @@ const LoginPage = () => {
             />
           </div>
 
-          <div className="grid w-full items-center gap-3">
-            <Label htmlFor="password" className="flex items-center gap-1">
-              <MdLockOutline size={15} />
+          <div className="grid w-full items-center gap-1">
+            <Label
+              htmlFor="password"
+              className="flex text-xs items-center gap-1"
+            >
+              <MdLockOutline size={13} />
               Password
             </Label>
             <Input

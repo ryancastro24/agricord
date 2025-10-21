@@ -56,6 +56,7 @@ const router = createBrowserRouter([
         ),
         loader: ScanFarmerLoader,
       },
+
       {
         path: "farmer_attendance",
         element: (
