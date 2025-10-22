@@ -57,6 +57,17 @@ const router = createBrowserRouter([
         loader: ScanFarmerLoader,
       },
 
+      // 👇 CHAIRMAN ROUTES
+      {
+        path: "scanner/:farmerId",
+        element: (
+          <ProtectedRoute allowedRoles={["chairman"]}>
+            <ScanFarmer />
+          </ProtectedRoute>
+        ),
+        loader: ScanFarmerLoader,
+      },
+
       {
         path: "farmer_attendance",
         element: (

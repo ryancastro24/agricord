@@ -129,6 +129,9 @@ const ScanFarmer = () => {
     error: string | null;
   };
 
+  console.log("error when loading data", loaderData.error);
+
+  console.log("loader data", loaderData);
   const farmer = loaderData?.farmer;
 
   // 🔍 Scan goods QR codes
@@ -285,7 +288,7 @@ const ScanFarmer = () => {
     <div className="flex flex-col md:grid md:grid-cols-[350px_1fr] gap-4 p-4 h-full md:h-screen">
       {/* LEFT SIDE SCANNER */}
       <div className="w-full h-full">
-        <div className="bg-slate-100 w-full h-[250px] md:h-[300px] rounded overflow-hidden">
+        <div className="bg-slate-100 w-full h-full md:h-[300px] rounded overflow-hidden">
           {!isGoodsDialogOpen && (
             <Scanner
               onScan={(results) => {
@@ -320,14 +323,14 @@ const ScanFarmer = () => {
       </div>
 
       {/* RIGHT SIDE */}
-      <div className="w-full flex flex-col gap-5 shadow-2xl p-4 shadow-[#00000045]">
+      <div className="w-full h-full flex flex-col gap-5 shadow-2xl p-4 shadow-[#00000045]">
         {loaderData?.alreadyScanned ? (
           <div className="flex items-center justify-center h-[200px] md:h-full text-green-600 font-semibold text-lg text-center">
             ✅ Farmer already scanned today!
           </div>
         ) : !farmer ? (
           <div className="flex items-center justify-center h-[200px] md:h-full text-gray-500 text-lg text-center">
-            {loaderData?.error
+            {loaderData.error == "Could not fetch farmer"
               ? "🚫 User does not exist. Try again!"
               : "📷 Scan QR code to view farmer data"}
           </div>
