@@ -50,7 +50,7 @@ const router = createBrowserRouter([
       {
         path: "scanner",
         element: (
-          <ProtectedRoute allowedRoles={["chairman"]}>
+          <ProtectedRoute allowedRoles={["chairman", "staff"]}>
             <ScanFarmer />
           </ProtectedRoute>
         ),
@@ -61,7 +61,7 @@ const router = createBrowserRouter([
       {
         path: "scanner/:farmerId",
         element: (
-          <ProtectedRoute allowedRoles={["chairman"]}>
+          <ProtectedRoute allowedRoles={["chairman", "staff"]}>
             <ScanFarmer />
           </ProtectedRoute>
         ),
