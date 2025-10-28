@@ -2,6 +2,7 @@ import LineChartMain from "@/charts/LineChartMain";
 import PieChartContent from "@/charts/PieChart";
 import BarChartContent from "@/charts/BarChartContent";
 import PieChartPerBarangay from "@/charts/PieChartPerBarangay";
+import ItemUpdateChart from "@/charts/ItemUpdateChart";
 
 const DashboardContent = () => {
   return (
@@ -13,6 +14,8 @@ const DashboardContent = () => {
         <BarChartContent />
         <PieChartPerBarangay />
       </div>
+
+      <ItemUpdateChart />
     </div>
   );
 };

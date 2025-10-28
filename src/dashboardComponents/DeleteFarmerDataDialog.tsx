@@ -5,12 +5,14 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import supabase from "@/db/config"; // 👈 make sure this points to your supabase client
 
 const DeleteFarmerDataDialog = ({
   openDeleteFarmerDialog,
   setOpenDeleteFarmerDialog,
   deleteFarmer,
+  onSuccess,
 }: any) => {
   // 🔧 function to delete farmer
   const handleDeleteFarmer = async () => {
@@ -25,7 +27,9 @@ const DeleteFarmerDataDialog = ({
       console.error("Error deleting farmer:", error.message);
       alert("Failed to delete farmer ❌");
     } else {
-      alert("Farmer deleted successfully ✅");
+      toast.success("Farmer deleted successfully ✅");
+      onSuccess?.();
+
       setOpenDeleteFarmerDialog(false); // close the dialog
     }
   };
@@ -36,7 +40,7 @@ const DeleteFarmerDataDialog = ({
         open={openDeleteFarmerDialog}
         onOpenChange={setOpenDeleteFarmerDialog}
       >
-        <DialogContent className="w-max-lg p-4">
+        <DialogContent className="w-[400px] p-4">
           <DialogDescription>
             Are you sure you want to delete this farmer&apos;s data? This action
             cannot be undone.

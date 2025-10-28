@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useLoaderData } from "react-router-dom";
 import Webcam from "react-webcam";
-import { Camera, Loader2 } from "lucide-react";
+import { Camera, Loader2, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 
 import { Input } from "@/components/ui/input";
@@ -30,6 +30,12 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import supabase from "@/db/config";
 
 type Staff = {
@@ -58,9 +64,9 @@ const Staffs = () => {
   const loaderData = useLoaderData() as { users: Staff[] } | null;
   const [users, setUsers] = useState<Staff[]>([]);
   const [loading, setLoading] = useState(true);
-
   const [submitting, setSubmitting] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [, setDeletingId] = useState<string | null>(null);
+  const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
 
   const [search, setSearch] = useState("");
   const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -78,7 +84,6 @@ const Staffs = () => {
     category: "",
   });
 
-  // ✅ Initialize data
   useEffect(() => {
     if (loaderData) {
       const timer = setTimeout(() => {
@@ -89,7 +94,7 @@ const Staffs = () => {
     }
   }, [loaderData]);
 
-  // ✅ Capture profile picture
+  // ✅ Capture photo
   const capture = useCallback(() => {
     const imageSrc = webcamRef.current?.getScreenshot();
     if (imageSrc) {
@@ -98,7 +103,7 @@ const Staffs = () => {
     }
   }, []);
 
-  // ✅ Create new staff
+  // ✅ Add new staff
   const handleCreateStaff = async () => {
     const {
       firstname,
@@ -111,7 +116,6 @@ const Staffs = () => {
       profile_picture,
       category,
     } = newStaff;
-
     if (!firstname || !lastname || !email || !password) {
       toast.error("Please fill in all required fields");
       return;
@@ -119,8 +123,6 @@ const Staffs = () => {
 
     try {
       setSubmitting(true);
-
-      // Step 1: Create Auth User
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
@@ -135,10 +137,8 @@ const Staffs = () => {
           },
         },
       });
-
       if (authError) throw authError;
 
-      // Step 2: Insert into users table
       const { error: insertError } = await supabase.from("users").insert({
         auth_id: authData.user?.id,
         firstname,
@@ -152,7 +152,6 @@ const Staffs = () => {
         is_active: true,
         category,
       });
-
       if (insertError) throw insertError;
 
       toast.success("✅ Staff added successfully!");
@@ -168,37 +167,58 @@ const Staffs = () => {
         category: "",
       });
 
-      // Refresh users
       const { data: refreshed } = await supabase.from("users").select("*");
       if (refreshed) setUsers(refreshed);
     } catch (err: any) {
-      console.error(err);
       toast.error(err.message || "Failed to add staff");
     } finally {
       setSubmitting(false);
     }
   };
 
+  // ✅ Update staff
+  const handleUpdateStaff = async () => {
+    if (!editingStaff) return;
+    try {
+      const { error } = await supabase
+        .from("users")
+        .update({
+          firstname: editingStaff.firstname,
+          lastname: editingStaff.lastname,
+          contact: editingStaff.contact,
+          address: editingStaff.address,
+          role: editingStaff.role,
+        })
+        .eq("id", editingStaff.id);
+
+      if (error) throw error;
+      toast.success("✅ Staff updated successfully!");
+
+      const { data: refreshed } = await supabase.from("users").select("*");
+      if (refreshed) setUsers(refreshed);
+      setEditingStaff(null);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update staff");
+    }
+  };
+
   // ✅ Delete staff
   const handleDeleteStaff = async (id: string) => {
     if (!confirm("Are you sure you want to delete this staff?")) return;
-
     try {
       setDeletingId(id);
       const { error } = await supabase.from("users").delete().eq("id", id);
       if (error) throw error;
-
       setUsers((prev) => prev.filter((u) => u.id !== id));
       toast.success("🗑️ Staff deleted successfully!");
-    } catch (err: any) {
-      console.error(err);
+    } catch {
       toast.error("Failed to delete staff");
     } finally {
       setDeletingId(null);
     }
   };
 
-  // ✅ Filter search
+  // ✅ Search
   const filteredStaffs = users.filter((s) => {
     const fullname = `${s.firstname ?? ""} ${s.lastname ?? ""}`.trim();
     return (
@@ -207,9 +227,7 @@ const Staffs = () => {
     );
   });
 
-  // ==========================================================
-  // 🦴 LOADING SKELETON
-  // ==========================================================
+  // 🦴 Loading skeleton
   if (loading) {
     return (
       <div className="p-6 space-y-6 animate-in fade-in-0 duration-300">
@@ -236,12 +254,9 @@ const Staffs = () => {
     );
   }
 
-  // ==========================================================
-  // ✅ MAIN CONTENT
-  // ==========================================================
   return (
     <div className="p-6 space-y-6">
-      {/* 🔍 Search & Add Staff */}
+      {/* Search + Add */}
       <div className="flex justify-between items-center">
         <Input
           placeholder="Search staff..."
@@ -250,6 +265,7 @@ const Staffs = () => {
           className="w-1/3"
         />
 
+        {/* Add New Staff */}
         <Dialog>
           <DialogTrigger asChild>
             <Button>Add Staff</Button>
@@ -260,26 +276,23 @@ const Staffs = () => {
               <DialogTitle>Add New Staff</DialogTitle>
             </DialogHeader>
 
+            {/* Add Staff Form */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-              {/* Email */}
+              {/* Email / Password */}
               <div>
                 <Label>Email</Label>
                 <Input
                   type="email"
-                  placeholder="Enter staff email"
                   value={newStaff.email}
                   onChange={(e) =>
                     setNewStaff({ ...newStaff, email: e.target.value })
                   }
                 />
               </div>
-
-              {/* Password */}
               <div>
                 <Label>Password</Label>
                 <Input
                   type="password"
-                  placeholder="Enter password"
                   value={newStaff.password}
                   onChange={(e) =>
                     setNewStaff({ ...newStaff, password: e.target.value })
@@ -287,25 +300,19 @@ const Staffs = () => {
                 />
               </div>
 
-              {/* First Name */}
+              {/* First / Last name */}
               <div>
                 <Label>First Name</Label>
                 <Input
-                  type="text"
-                  placeholder="Enter first name"
                   value={newStaff.firstname}
                   onChange={(e) =>
                     setNewStaff({ ...newStaff, firstname: e.target.value })
                   }
                 />
               </div>
-
-              {/* Last Name */}
               <div>
                 <Label>Last Name</Label>
                 <Input
-                  type="text"
-                  placeholder="Enter last name"
                   value={newStaff.lastname}
                   onChange={(e) =>
                     setNewStaff({ ...newStaff, lastname: e.target.value })
@@ -313,25 +320,19 @@ const Staffs = () => {
                 />
               </div>
 
-              {/* Contact */}
+              {/* Contact / Address */}
               <div>
                 <Label>Contact</Label>
                 <Input
-                  type="text"
-                  placeholder="Enter contact number"
                   value={newStaff.contact}
                   onChange={(e) =>
                     setNewStaff({ ...newStaff, contact: e.target.value })
                   }
                 />
               </div>
-
-              {/* Address */}
               <div>
                 <Label>Address</Label>
                 <Input
-                  type="text"
-                  placeholder="Enter address"
                   value={newStaff.address}
                   onChange={(e) =>
                     setNewStaff({ ...newStaff, address: e.target.value })
@@ -339,7 +340,7 @@ const Staffs = () => {
                 />
               </div>
 
-              {/* Role */}
+              {/* Role / Category */}
               <div>
                 <Label>Role</Label>
                 <Select
@@ -348,7 +349,7 @@ const Staffs = () => {
                     setNewStaff({ ...newStaff, role: val })
                   }
                 >
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger>
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent>
@@ -358,8 +359,6 @@ const Staffs = () => {
                   </SelectContent>
                 </Select>
               </div>
-
-              {/* Category */}
               <div>
                 <Label>Category</Label>
                 <Select
@@ -368,7 +367,7 @@ const Staffs = () => {
                     setNewStaff({ ...newStaff, category: val })
                   }
                 >
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger>
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
@@ -387,18 +386,14 @@ const Staffs = () => {
                 <div className="flex items-center gap-3 mt-2">
                   <Dialog open={isCameraOpen} onOpenChange={setIsCameraOpen}>
                     <DialogTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setIsCameraOpen(true)}
-                      >
+                      <Button variant="outline" size="sm">
                         <Camera className="w-4 h-4 mr-1" /> Take Picture
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-md flex flex-col items-center gap-4">
                       <Webcam
-                        audio={false}
                         ref={webcamRef}
+                        audio={false}
                         screenshotFormat="image/jpeg"
                         className="rounded-md w-full aspect-video"
                         videoConstraints={{ facingMode: "user" }}
@@ -428,7 +423,7 @@ const Staffs = () => {
               >
                 {submitting ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Creating...
                   </>
                 ) : (
@@ -440,7 +435,7 @@ const Staffs = () => {
         </Dialog>
       </div>
 
-      {/* 🧑‍💼 Staff Table */}
+      {/* Staff Table */}
       <Table>
         <TableHeader>
           <TableRow>
@@ -476,27 +471,114 @@ const Staffs = () => {
                 <TableCell>{staff.address ?? "N/A"}</TableCell>
                 <TableCell>{staff.role}</TableCell>
                 <TableCell>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    disabled={deletingId === staff.id}
-                    onClick={() => handleDeleteStaff(staff.id)}
-                  >
-                    {deletingId === staff.id ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}
-                        Deleting...
-                      </>
-                    ) : (
-                      "Delete"
-                    )}
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <MoreHorizontal className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem onClick={() => setEditingStaff(staff)}>
+                        Update
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-red-600"
+                        onClick={() => handleDeleteStaff(staff.id)}
+                      >
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </TableCell>
               </TableRow>
             );
           })}
         </TableBody>
       </Table>
+
+      {/* Update Dialog */}
+      <Dialog open={!!editingStaff} onOpenChange={() => setEditingStaff(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Update Staff</DialogTitle>
+          </DialogHeader>
+          {editingStaff && (
+            <div className="space-y-3 mt-4">
+              <div>
+                <Label>First Name</Label>
+                <Input
+                  value={editingStaff.firstname}
+                  onChange={(e) =>
+                    setEditingStaff({
+                      ...editingStaff,
+                      firstname: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div>
+                <Label>Last Name</Label>
+                <Input
+                  value={editingStaff.lastname}
+                  onChange={(e) =>
+                    setEditingStaff({
+                      ...editingStaff,
+                      lastname: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div>
+                <Label>Contact</Label>
+                <Input
+                  value={editingStaff.contact ?? ""}
+                  onChange={(e) =>
+                    setEditingStaff({
+                      ...editingStaff,
+                      contact: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div>
+                <Label>Address</Label>
+                <Input
+                  value={editingStaff.address ?? ""}
+                  onChange={(e) =>
+                    setEditingStaff({
+                      ...editingStaff,
+                      address: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div>
+                <Label>Role</Label>
+                <Select
+                  value={editingStaff.role}
+                  onValueChange={(val) =>
+                    setEditingStaff({ ...editingStaff, role: val })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="staff">Staff</SelectItem>
+                    <SelectItem value="chairman">Chairman</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="pt-4">
+                <Button className="w-full" onClick={handleUpdateStaff}>
+                  Save Changes
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

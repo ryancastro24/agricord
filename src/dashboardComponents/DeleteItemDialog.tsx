@@ -4,14 +4,18 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import supabase from "@/db/config"; // 👈 make sure this points to your supabase client
+import { useState } from "react";
 
 const DeleteItemDialog = ({
   openDeleteItemDialog,
   setOpenDeleteItemDialog,
   deleteItem,
+  onSuccess,
 }: any) => {
+  const [loading, setLoading] = useState(false);
   // 🔧 function to delete item
   const handleDeleteItem = async () => {
     if (!deleteItem?.id) return;
@@ -25,7 +29,9 @@ const DeleteItemDialog = ({
       console.error("Error deleting item:", error.message);
       alert("Failed to delete item ❌");
     } else {
-      alert("Item deleted successfully ✅");
+      toast.success("Item Deleted successfully!");
+      setLoading(false);
+      onSuccess?.(); // refresh parent data
       setOpenDeleteItemDialog(false); // close the dialog
     }
   };
@@ -36,7 +42,7 @@ const DeleteItemDialog = ({
         open={openDeleteItemDialog}
         onOpenChange={setOpenDeleteItemDialog}
       >
-        <DialogContent className="w-max-lg p-4">
+        <DialogContent className="w-[400px] p-4">
           <DialogDescription>
             Are you sure you want to delete this item? This action cannot be
             undone.
@@ -53,9 +59,12 @@ const DeleteItemDialog = ({
             <Button
               type="button"
               variant="destructive"
-              onClick={handleDeleteItem}
+              onClick={() => {
+                handleDeleteItem();
+                setLoading(true);
+              }}
             >
-              Delete
+              {loading ? "Deleting..." : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>

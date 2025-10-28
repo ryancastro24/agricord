@@ -8,6 +8,8 @@ import AddCornFarmerDialog from "@/dashboardComponents/AddCornFarmerDialog";
 import AddCropsFarmerDialog from "@/dashboardComponents/AddCropsFarmerDialog";
 import AddLiveStockFarmerDialog from "@/dashboardComponents/AddLiveStockFarmerDialog";
 import AddFisheryFarmerDialog from "@/dashboardComponents/AddFisheryFarmerDialog";
+import ViewFarmersDetails from "@/dashboardComponents/ViewFarmersDetails";
+
 import {
   Table,
   TableBody,
@@ -46,17 +48,21 @@ type Farmer = {
   city: string;
   province: string;
   contact_number: string;
-  gender: string;
+  sex: string;
+  age?: number;
+  birthdate?: string;
+  email?: string;
+  farmer_role?: string;
+  farm_type?: string;
+  civil_status?: string;
 };
 
 export default function Farmers() {
   const [farmers, setFarmers] = useState<Farmer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [openEditFarmerDialog, setOpenEditFarmerDialog] = useState(false);
-  const [openDeleteFarmerDialog, setOpenDeleteFarmerDialog] = useState(false);
+
   const [adminCategory, setAdminCategory] = useState<string | null>(null);
-  const [editFarmer, setEditFarmer] = useState<Farmer | null>(null);
-  const [deleteFarmer, setDeleteFarmer] = useState<Farmer | null>(null);
+
   const [filters, setFilters] = useState({
     city: "",
     barangay: "",
@@ -65,7 +71,17 @@ export default function Farmers() {
     search: "",
   });
 
-  // Fetch data automatically
+  // Dialog states
+  const [openEditFarmerDialog, setOpenEditFarmerDialog] = useState(false);
+  const [openDeleteFarmerDialog, setOpenDeleteFarmerDialog] = useState(false);
+  const [openViewFarmerDialog, setOpenViewFarmerDialog] = useState(false);
+
+  // Selected farmer data
+  const [editFarmer, setEditFarmer] = useState<Farmer | null>(null);
+  const [deleteFarmer, setDeleteFarmer] = useState<Farmer | null>(null);
+  const [viewFarmerData, setViewFarmerData] = useState<Farmer | null>(null);
+
+  // Fetch all farmers
   const fetchFarmers = async () => {
     setLoading(true);
     const { data, error } = await supabase.from("farmers").select("*");
@@ -78,26 +94,52 @@ export default function Farmers() {
     setLoading(false);
   };
 
-  // Fetch data automatically
+  // Get logged-in admin category
   const fetchUserLoginData = async () => {
-    setLoading(true);
     const { data, error } = await supabase.auth.getUser();
-    if (error) {
-      toast.error("Error fetching farmers data.");
-      console.error(error);
-    } else {
+    if (!error) {
       setAdminCategory(data?.user?.user_metadata?.category || null);
     }
-    setLoading(false);
   };
 
+  // Initial + realtime setup
   useEffect(() => {
     fetchFarmers();
     fetchUserLoginData();
+
+    const channel = supabase
+      .channel("farmers-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "farmers" },
+        (payload) => {
+          if (payload.eventType === "INSERT") {
+            setFarmers((prev) => [payload.new as Farmer, ...prev]);
+          } else if (payload.eventType === "UPDATE") {
+            setFarmers((prev) =>
+              prev.map((f) =>
+                f.id === (payload.new as Farmer).id
+                  ? (payload.new as Farmer)
+                  : f
+              )
+            );
+          } else if (payload.eventType === "DELETE") {
+            setFarmers((prev) =>
+              prev.filter((f) => f.id !== (payload.old as Farmer).id)
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
+  // Filters
   const handleFilterChange = (field: string, value: string) => {
-    setFilters({ ...filters, [field]: value });
+    setFilters((prev) => ({ ...prev, [field]: value }));
   };
 
   const filteredFarmers = farmers.filter((farmer) => {
@@ -105,7 +147,7 @@ export default function Farmers() {
       (filters.city === "" || farmer.city === filters.city) &&
       (filters.barangay === "" || farmer.barangay === filters.barangay) &&
       (filters.province === "" || farmer.province === filters.province) &&
-      (filters.gender === "" || farmer.gender === filters.gender) &&
+      (filters.gender === "" || farmer.sex === filters.gender) &&
       (filters.search === "" ||
         Object.values(farmer)
           .join(" ")
@@ -114,10 +156,8 @@ export default function Farmers() {
     );
   });
 
-  // Success handlers for dialogs
   const handleSuccess = (msg: string) => {
     toast.success(msg);
-    fetchFarmers();
   };
 
   return (
@@ -131,6 +171,7 @@ export default function Farmers() {
             className="w-full sm:w-[200px]"
             onChange={(e) => handleFilterChange("search", e.target.value)}
           />
+
           <Select
             value={filters.city}
             onValueChange={(val) => handleFilterChange("city", val)}
@@ -146,6 +187,7 @@ export default function Farmers() {
               ))}
             </SelectContent>
           </Select>
+
           <Select
             value={filters.barangay}
             onValueChange={(val) => handleFilterChange("barangay", val)}
@@ -161,6 +203,7 @@ export default function Farmers() {
               ))}
             </SelectContent>
           </Select>
+
           <Select
             value={filters.province}
             onValueChange={(val) => handleFilterChange("province", val)}
@@ -176,6 +219,7 @@ export default function Farmers() {
               ))}
             </SelectContent>
           </Select>
+
           <Select
             value={filters.gender}
             onValueChange={(val) => handleFilterChange("gender", val)}
@@ -205,32 +249,20 @@ export default function Farmers() {
           </Button>
         </div>
 
+        {/* Add buttons */}
         <div className="flex items-center gap-2">
           <PrintQRCodes farmers={farmers} />
-          {/* <AddFarmerDialog
-            onSuccess={() => handleSuccess("Farmer added successfully!")}
-          /> */}
-
-          {adminCategory === "corn" ||
-            (adminCategory === "all" && (
-              <AddCornFarmerDialog
-                onSuccess={() => handleSuccess("Farmer added successfully!")}
-              />
-            ))}
+          {adminCategory === "corn" || adminCategory === "all" ? (
+            <AddCornFarmerDialog onSuccess={fetchFarmers} />
+          ) : null}
           {adminCategory === "crops" && (
-            <AddFisheryFarmerDialog
-              onSuccess={() => handleSuccess("Farmer added successfully!")}
-            />
+            <AddCropsFarmerDialog onSuccess={fetchFarmers} />
           )}
           {adminCategory === "livestock" && (
-            <AddLiveStockFarmerDialog
-              onSuccess={() => handleSuccess("Farmer added successfully!")}
-            />
+            <AddLiveStockFarmerDialog onSuccess={fetchFarmers} />
           )}
           {adminCategory === "fishery" && (
-            <AddCropsFarmerDialog
-              onSuccess={() => handleSuccess("Farmer added successfully!")}
-            />
+            <AddFisheryFarmerDialog onSuccess={fetchFarmers} />
           )}
         </div>
       </div>
@@ -248,13 +280,13 @@ export default function Farmers() {
             <TableCaption>Farmers List</TableCaption>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[80px]">ID Number</TableHead>
+                <TableHead>ID Number</TableHead>
                 <TableHead>First Name</TableHead>
                 <TableHead>Last Name</TableHead>
                 <TableHead>Barangay</TableHead>
                 <TableHead>City</TableHead>
                 <TableHead>Contact</TableHead>
-                <TableHead className="w-[120px]">Actions</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -266,7 +298,7 @@ export default function Farmers() {
                   <TableCell>{farmer.barangay}</TableCell>
                   <TableCell>{farmer.city}</TableCell>
                   <TableCell>{farmer.contact_number}</TableCell>
-                  <TableCell>
+                  <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
@@ -280,6 +312,14 @@ export default function Farmers() {
                       <DropdownMenuContent align="end" className="w-32">
                         <DropdownMenuLabel>Options</DropdownMenuLabel>
                         <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setViewFarmerData(farmer);
+                            setOpenViewFarmerDialog(true);
+                          }}
+                        >
+                          View
+                        </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => {
                             setEditFarmer(farmer);
@@ -322,7 +362,15 @@ export default function Farmers() {
           openDeleteFarmerDialog={openDeleteFarmerDialog}
           setOpenDeleteFarmerDialog={setOpenDeleteFarmerDialog}
           deleteFarmer={deleteFarmer}
-          onSuccess={() => handleSuccess("Farmer deleted successfully!")}
+          onSuccess={fetchFarmers}
+        />
+      )}
+
+      {viewFarmerData && (
+        <ViewFarmersDetails
+          openViewFarmerDialog={openViewFarmerDialog}
+          setOpenViewFarmerDialog={setOpenViewFarmerDialog}
+          details={viewFarmerData}
         />
       )}
     </div>

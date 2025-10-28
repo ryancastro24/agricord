@@ -18,13 +18,7 @@ import QRCode from "qrcode";
 import Webcam from "react-webcam";
 import { toast } from "sonner";
 
-interface AddFisheryFarmerDialogProps {
-  onSuccess?: () => void;
-}
-
-const AddFisheryFarmerDialog: React.FC<AddFisheryFarmerDialogProps> = ({
-  onSuccess,
-}) => {
+const AddFisheryFarmerDialog = ({ onSuccess }: any) => {
   const profileCamRef = useRef<Webcam>(null);
   const idCamRef = useRef<Webcam>(null);
 
@@ -171,7 +165,35 @@ const AddFisheryFarmerDialog: React.FC<AddFisheryFarmerDialogProps> = ({
 
       toast.success("✅ Farmer successfully added!");
       setOpen(false);
+      setNewFarmer({
+        id_number: "",
+        firstname: "",
+        lastname: "",
+        middlename: "",
+        sex: "",
+        bldg_no: "",
+        street: "",
+        barangay: "",
+        city: "",
+        province: "",
+        region: "",
+        date_of_birth: "",
+        place_of_birth: "",
+        contact_number: "",
+        highest_formal_education: "",
+        religion: "",
+        civil_status: "",
+        is_married: false,
+        is_with_disability: false,
+        is_4ps_beneficiary: false,
+        have_government_id: false,
+        government_id_number: "",
+        cooperative: "",
+        person_to_notify_emergency: "",
+        person_to_notify_emergency_contact_number: "",
+      });
       onSuccess?.();
+
       setProfileImage(null);
       setIdImage(null);
     } catch (error) {
@@ -257,17 +279,26 @@ const AddFisheryFarmerDialog: React.FC<AddFisheryFarmerDialogProps> = ({
 
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <Label>Sex</Label>
-                    <Input
+                    <Label htmlFor="sex">Sex</Label>
+                    <select
+                      id="sex"
                       value={newFarmer.sex}
                       onChange={(e) =>
                         setNewFarmer({ ...newFarmer, sex: e.target.value })
                       }
-                    />
+                      className="border border-gray-300 rounded-md p-2 w-full"
+                    >
+                      <option value="">Select Sex</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                    </select>
                   </div>
+
                   <div>
-                    <Label>Civil Status</Label>
-                    <Input
+                    <Label htmlFor="civil_status">Civil Status</Label>
+                    <select
+                      id="civil_status"
                       value={newFarmer.civil_status}
                       onChange={(e) =>
                         setNewFarmer({
@@ -275,8 +306,17 @@ const AddFisheryFarmerDialog: React.FC<AddFisheryFarmerDialogProps> = ({
                           civil_status: e.target.value,
                         })
                       }
-                    />
+                      className="border border-gray-300 rounded-md p-2 w-full"
+                    >
+                      <option value="">Select Civil Status</option>
+                      <option value="Single">Single</option>
+                      <option value="Married">Married</option>
+                      <option value="Widowed">Widowed</option>
+                      <option value="Separated">Separated</option>
+                      <option value="Divorced">Divorced</option>
+                    </select>
                   </div>
+
                   <div>
                     <Label>Date of Birth</Label>
                     <Input
@@ -517,16 +557,27 @@ const AddFisheryFarmerDialog: React.FC<AddFisheryFarmerDialogProps> = ({
           <TabsContent value="farm">
             <Card>
               <CardContent className="grid gap-3 py-4">
-                <Label>Farmer Role</Label>
-                <Input
-                  value={farmProfile.farmer_role}
-                  onChange={(e) =>
-                    setFarmProfile({
-                      ...farmProfile,
-                      farmer_role: e.target.value,
-                    })
-                  }
-                />
+                <div>
+                  <Label htmlFor="farmer_role">Farmer Role</Label>
+                  <select
+                    id="farmer_role"
+                    value={farmProfile.farmer_role}
+                    onChange={(e) =>
+                      setFarmProfile({
+                        ...farmProfile,
+                        farmer_role: e.target.value,
+                      })
+                    }
+                    className="border border-gray-300 rounded-md p-2 w-full"
+                  >
+                    <option value="">Select Farmer Role</option>
+                    <option value="farmer">Farmer</option>
+                    <option value="laborer">Laborer</option>
+                    <option value="fishing">Fishing</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
                 <Label>Farmer Activity</Label>
                 <Input
                   value={farmProfile.farmer_activity}

@@ -296,7 +296,12 @@ export default function Inventory() {
             <ItemReturnsDialog item_returns={itemReturns} />
           </Button>
 
-          <AddItemsDialog />
+          {/* ✅ Modified Add Item Dialog with toast and refresh */}
+          <AddItemsDialog
+            onSuccess={() => {
+              fetchData();
+            }}
+          />
         </div>
       </div>
 
@@ -425,6 +430,9 @@ export default function Inventory() {
           openDeleteItemDialog={openDeleteItemDialog}
           setOpenDeleteItemDialog={setOpenDeleteItemDialog}
           deleteItem={deleteItem}
+          onSuccess={() => {
+            fetchData();
+          }}
         />
       </div>
     </div>

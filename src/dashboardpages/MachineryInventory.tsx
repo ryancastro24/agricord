@@ -24,7 +24,8 @@ import { LuPlus, LuTrash2 } from "react-icons/lu";
 import Webcam from "react-webcam";
 import QRCode from "qrcode";
 import { toast } from "sonner";
-
+import jsPDF from "jspdf";
+import { FiDownload } from "react-icons/fi";
 interface Machine {
   id: string;
   reference_number: string;
@@ -196,6 +197,32 @@ const MachineryInventory: React.FC = () => {
     } finally {
       setDeletingId(null);
     }
+  };
+
+  // 🧾 Generate A4 PDF with repeated 2x2 QR codes
+  const handleDownloadPDF = async (machine: Machine) => {
+    if (!machine.qr_code) {
+      toast.error("No QR code available for this machine.");
+      return;
+    }
+
+    const pdf = new jsPDF("p", "mm", "a4");
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+
+    // 2x2 inch = ~50.8mm
+    const qrSize = 50.8;
+    const cols = Math.floor(pageWidth / qrSize);
+    const rows = Math.floor(pageHeight / qrSize);
+
+    const img = machine.qr_code;
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        pdf.addImage(img, "PNG", x * qrSize, y * qrSize, qrSize, qrSize);
+      }
+    }
+
+    pdf.save(`${machine.reference_number}_QRsheet.pdf`);
   };
 
   const resetForm = () => {
@@ -395,12 +422,23 @@ const MachineryInventory: React.FC = () => {
 
                 <div className="flex gap-2 justify-between items-center mt-3">
                   {m.qr_code && (
-                    <img
-                      src={m.qr_code}
-                      alt="Machine"
-                      className="w-12 h-12 object-cover rounded-lg"
-                    />
+                    <div className="relative group w-12 h-12">
+                      <img
+                        src={m.qr_code}
+                        alt="Machine QR"
+                        className="w-12 h-12 object-cover rounded-lg border cursor-pointer"
+                      />
+                      {/* Hover Download Icon */}
+                      <div
+                        onClick={() => handleDownloadPDF(m)}
+                        className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg cursor-pointer"
+                        title="Download QR Sheet"
+                      >
+                        <FiDownload className="text-white w-5 h-5" />
+                      </div>
+                    </div>
                   )}
+
                   <Button
                     size="sm"
                     variant="destructive"
