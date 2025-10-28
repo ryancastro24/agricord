@@ -17,6 +17,8 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import { TbEdit } from "react-icons/tb";
+import { AiOutlineDelete } from "react-icons/ai";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -114,12 +116,18 @@ const Clusters = () => {
   });
   const [chairmanSearch, setChairmanSearch] = useState("");
 
-  console.log("Loaded clusters:", clusters);
-  // ✅ Simulate loader delay (show skeleton until data is ready)
+  // 🆕 Update cluster states
+  const [openEditDialog, setOpenEditDialog] = useState(false);
+  const [editCluster, setEditCluster] = useState<Cluster | null>(null);
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [clusterToDelete, setClusterToDelete] = useState<Cluster | null>(null);
+
+  console.log("Debugged data:", editCluster);
+
   useEffect(() => {
     if (clusters && farmers) {
       setClusters(clusters);
-      setTimeout(() => setLoading(false), 600); // slight delay for smooth transition
+      setTimeout(() => setLoading(false), 600);
     }
   }, [clusters, farmers]);
 
@@ -165,6 +173,50 @@ const Clusters = () => {
     setOpenAddDialog(false);
   };
 
+  // 🆕 Update Cluster
+  const handleEditCluster = async () => {
+    if (!editCluster) return;
+
+    const { error } = await supabase
+      .from("clusters")
+      .update({
+        cluster_name: editCluster.cluster_name,
+        barangay: editCluster.barangay,
+        category: editCluster.category,
+      })
+      .eq("id", editCluster.id);
+
+    if (error) {
+      console.error("Error updating cluster:", error);
+      alert("Failed to update cluster.");
+      return;
+    }
+
+    setClusters((prev) =>
+      prev.map((c) => (c.id === editCluster.id ? { ...c, ...editCluster } : c))
+    );
+    setOpenEditDialog(false);
+  };
+
+  // 🆕 Delete Cluster
+  const handleDeleteCluster = async () => {
+    if (!clusterToDelete) return;
+
+    const { error } = await supabase
+      .from("clusters")
+      .delete()
+      .eq("id", clusterToDelete.id);
+
+    if (error) {
+      console.error("Error deleting cluster:", error);
+      alert("Failed to delete cluster.");
+      return;
+    }
+
+    setClusters((prev) => prev.filter((c) => c.id !== clusterToDelete.id));
+    setOpenDeleteDialog(false);
+  };
+
   const loadClusterFarmers = async (clusterId: number) => {
     const { data, error } = await supabase
       .from("farmer_clusters")
@@ -183,7 +235,6 @@ const Clusters = () => {
   };
 
   const handleAddFarmerToCluster = async () => {
-    console.log("Selected Farmer ID:", selectedFarmer);
     if (!openCluster || !selectedFarmer) return;
 
     const { error } = await supabase.from("farmer_clusters").insert([
@@ -229,13 +280,11 @@ const Clusters = () => {
   if (loading) {
     return (
       <div className="p-6 animate-pulse space-y-6">
-        {/* Header skeleton */}
         <div className="flex justify-between">
           <div className="h-6 w-48 bg-gray-200 rounded" />
           <div className="h-10 w-32 bg-gray-200 rounded" />
         </div>
 
-        {/* Cluster cards skeleton */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {[...Array(6)].map((_, i) => (
             <div key={i} className="border rounded-lg p-4 space-y-3">
@@ -253,7 +302,6 @@ const Clusters = () => {
   // ✅ Actual content
   return (
     <div className="p-6">
-      {/* Add Cluster Button */}
       <div className="flex justify-between mb-6">
         <h2 className="text-xl font-bold">Cluster Management</h2>
         <Button onClick={() => setOpenAddDialog(true)}>
@@ -261,16 +309,40 @@ const Clusters = () => {
         </Button>
       </div>
 
-      {/* Cluster Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {clusterList.map((cluster: Cluster) => (
           <Card key={cluster.id}>
-            <CardHeader>
+            <CardHeader className="flex justify-between items-center">
               <CardTitle className="flex items-center gap-1">
                 <FaBookmark color="#00BC7D" size={15} />
                 {cluster.cluster_name}
               </CardTitle>
+
+              {/* 🆕 Update & Delete Icons */}
+              <div className="flex">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    setEditCluster(cluster);
+                    setOpenEditDialog(true);
+                  }}
+                >
+                  <TbEdit size={20} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    setClusterToDelete(cluster);
+                    setOpenDeleteDialog(true);
+                  }}
+                >
+                  <AiOutlineDelete className="w-4 h-4 text-red-600" />
+                </Button>
+              </div>
             </CardHeader>
+
             <CardContent>
               <p className="text-sm">
                 <strong>Category:</strong> {cluster.category}
@@ -301,7 +373,6 @@ const Clusters = () => {
           <DialogHeader>
             <DialogTitle>Add New Cluster</DialogTitle>
           </DialogHeader>
-
           <div className="space-y-4 mt-2">
             <Input
               placeholder="Cluster Name"
@@ -310,7 +381,6 @@ const Clusters = () => {
                 setNewCluster({ ...newCluster, cluster_name: e.target.value })
               }
             />
-
             <Input
               placeholder="Barangay"
               value={newCluster.barangay}
@@ -318,43 +388,46 @@ const Clusters = () => {
                 setNewCluster({ ...newCluster, barangay: e.target.value })
               }
             />
-
-            {/* Chairman search */}
             <div>
-              <Input
-                placeholder="Type chairman name"
-                value={chairmanSearch}
-                onChange={(e) => {
-                  setChairmanSearch(e.target.value);
-                }}
-              />
-              {chairmanSearch && (
-                <div className="border rounded-md mt-1 max-h-32 overflow-y-auto">
-                  {usersRes
-                    .filter((c: any) =>
-                      `${c.firstname} ${c.lastname}`
-                        .toLowerCase()
-                        .includes(chairmanSearch.toLowerCase())
-                    )
-                    .map((c: any) => (
-                      <div
-                        key={c.id}
-                        className="px-2 py-1 hover:bg-gray-100 cursor-pointer"
-                        onClick={() => {
-                          setNewCluster({
-                            ...newCluster,
-                            chairman_id: c.auth_id,
-                          });
-                          setChairmanSearch(`${c.firstname} ${c.lastname}`);
-                        }}
-                      >
-                        {c.firstname} {c.lastname}
+              <div className="space-y-2">
+                <Select
+                  onValueChange={(value) => {
+                    const selected = usersRes.find(
+                      (u: any) => u.auth_id === value
+                    );
+                    setNewCluster({
+                      ...newCluster,
+                      chairman_id: value,
+                    });
+                    setChairmanSearch(
+                      selected
+                        ? `${selected.firstname} ${selected.lastname}`
+                        : ""
+                    );
+                  }}
+                  value={newCluster.chairman_id || ""}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue
+                      placeholder={chairmanSearch || "Select chairman"}
+                    />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-40 overflow-y-auto">
+                    {usersRes.length > 0 ? (
+                      usersRes.map((c: any) => (
+                        <SelectItem key={c.id} value={c.auth_id}>
+                          {c.firstname} {c.lastname}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className="px-2 py-1 text-sm text-gray-500">
+                        No available users
                       </div>
-                    ))}
-                </div>
-              )}
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-
             <Select
               onValueChange={(val) =>
                 setNewCluster({ ...newCluster, category: val })
@@ -372,7 +445,6 @@ const Clusters = () => {
               </SelectContent>
             </Select>
           </div>
-
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenAddDialog(false)}>
               Cancel
@@ -381,6 +453,127 @@ const Clusters = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* 🆕 Edit Cluster Dialog */}
+      <Dialog open={openEditDialog} onOpenChange={setOpenEditDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Cluster</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <Input
+              placeholder="Cluster Name"
+              value={editCluster?.cluster_name || ""}
+              onChange={(e) =>
+                setEditCluster({
+                  ...(editCluster as Cluster),
+                  cluster_name: e.target.value,
+                })
+              }
+            />
+            <Input
+              placeholder="Barangay"
+              value={editCluster?.barangay || ""}
+              onChange={(e) =>
+                setEditCluster({
+                  ...(editCluster as Cluster),
+                  barangay: e.target.value,
+                })
+              }
+            />
+
+            <Select
+              value={editCluster?.chairman_id || ""}
+              onValueChange={(value) => {
+                const selected = usersRes.find((u: any) => u.auth_id === value);
+
+                setEditCluster((prev: any) => ({
+                  ...prev,
+                  chairman_id: value,
+                  users: selected
+                    ? {
+                        ...selected,
+                      }
+                    : null,
+                }));
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue
+                  placeholder={
+                    editCluster?.users
+                      ? `${editCluster.users.firstname} ${editCluster.users.lastname}`
+                      : "Select chairman"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent className="max-h-40 overflow-y-auto">
+                {usersRes.length > 0 ? (
+                  usersRes.map((c: any) => (
+                    <SelectItem key={c.auth_id} value={c.auth_id}>
+                      {c.firstname} {c.lastname}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <div className="px-2 py-1 text-sm text-gray-500">
+                    No available users
+                  </div>
+                )}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={editCluster?.category || ""}
+              onValueChange={(val) =>
+                setEditCluster({
+                  ...(editCluster as Cluster),
+                  category: val,
+                })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select Category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((cat) => (
+                  <SelectItem key={cat} value={cat}>
+                    {cat}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenEditDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditCluster}>Update Cluster</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 🆕 Delete Cluster Dialog */}
+      <AlertDialog open={openDeleteDialog} onOpenChange={setOpenDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Are you sure you want to delete this cluster?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. All related data might be affected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={handleDeleteCluster}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Manage Cluster Dialog */}
       <Dialog open={!!openCluster} onOpenChange={() => setOpenCluster(null)}>
@@ -392,7 +585,6 @@ const Clusters = () => {
           </DialogHeader>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Left Panel */}
             <div className="w-full">
               <Select onValueChange={(val) => setSelectedFarmer(val)}>
                 <SelectTrigger className="w-full">
@@ -414,8 +606,6 @@ const Clusters = () => {
                 Add Farmer
               </Button>
             </div>
-
-            {/* Right Panel */}
 
             <div className="col-span-2">
               <h2 className="mb-2">List Of Farmers</h2>

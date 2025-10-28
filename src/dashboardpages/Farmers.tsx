@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import supabase from "@/db/config";
 import { toast } from "sonner";
 import DeleteFarmerDataDialog from "@/dashboardComponents/DeleteFarmerDataDialog";
-import EditFarmerData from "@/dashboardComponents/EditFarmerData";
+// import EditFarmerData from "@/dashboardComponents/EditFarmerData";
 import PrintQRCodes from "@/dashboardComponents/PrintQRCodes";
 import AddCornFarmerDialog from "@/dashboardComponents/AddCornFarmerDialog";
 import AddCropsFarmerDialog from "@/dashboardComponents/AddCropsFarmerDialog";
@@ -72,12 +72,12 @@ export default function Farmers() {
   });
 
   // Dialog states
-  const [openEditFarmerDialog, setOpenEditFarmerDialog] = useState(false);
+  // const [openEditFarmerDialog, setOpenEditFarmerDialog] = useState(false);
   const [openDeleteFarmerDialog, setOpenDeleteFarmerDialog] = useState(false);
   const [openViewFarmerDialog, setOpenViewFarmerDialog] = useState(false);
 
   // Selected farmer data
-  const [editFarmer, setEditFarmer] = useState<Farmer | null>(null);
+  // const [editFarmer, setEditFarmer] = useState<Farmer | null>(null);
   const [deleteFarmer, setDeleteFarmer] = useState<Farmer | null>(null);
   const [viewFarmerData, setViewFarmerData] = useState<Farmer | null>(null);
 
@@ -156,9 +156,9 @@ export default function Farmers() {
     );
   });
 
-  const handleSuccess = (msg: string) => {
-    toast.success(msg);
-  };
+  // const handleSuccess = (msg: string) => {
+  //   toast.success(msg);
+  // };
 
   return (
     <div className="p-4 sm:p-6 space-y-4">
@@ -320,14 +320,14 @@ export default function Farmers() {
                         >
                           View
                         </DropdownMenuItem>
-                        <DropdownMenuItem
+                        {/* <DropdownMenuItem
                           onClick={() => {
                             setEditFarmer(farmer);
                             setOpenEditFarmerDialog(true);
                           }}
                         >
                           Edit
-                        </DropdownMenuItem>
+                        </DropdownMenuItem> */}
                         <DropdownMenuItem
                           onClick={() => {
                             setDeleteFarmer(farmer);
@@ -348,14 +348,14 @@ export default function Farmers() {
       </div>
 
       {/* Dialogs */}
-      {editFarmer && (
+      {/* {editFarmer && (
         <EditFarmerData
           openEditFarmerDialog={openEditFarmerDialog}
           setOpenEditFarmerDialog={setOpenEditFarmerDialog}
           editFarmer={editFarmer}
           onSuccess={() => handleSuccess("Farmer updated successfully!")}
         />
-      )}
+      )} */}
 
       {deleteFarmer && (
         <DeleteFarmerDataDialog
