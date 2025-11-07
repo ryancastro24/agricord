@@ -75,7 +75,7 @@ const Dashboard = () => {
       to: "/dashboard/scanner",
       icon: <LuScanQrCode size={20} />,
       label: "Scan Farmer",
-      roles: ["chairman"],
+      roles: ["chairman", "staff"],
     },
     {
       to: "/dashboard/farmers",
