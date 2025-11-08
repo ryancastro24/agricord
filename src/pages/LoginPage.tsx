@@ -46,7 +46,7 @@ const LoginPage = () => {
       if (role === "chairman")
         navigate("/dashboard/scanner", { replace: true });
       else if (role === "staff")
-        navigate("/dashboard/cluster", { replace: true });
+        navigate("/dashboard/scanner", { replace: true });
       else if (role === "admin") navigate("/dashboard/", { replace: true });
       else navigate("/dashboard/", { replace: true });
     } catch (err: any) {
