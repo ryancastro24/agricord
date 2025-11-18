@@ -134,13 +134,13 @@ const Dashboard = () => {
     {
       to: "/dashboard/machinery_borrow",
       icon: <PiHandshake size={20} />,
-      label: "Borrow Machine",
+      label: "Rent Machine",
       roles: ["admin", "staff"],
     },
     {
       to: "/dashboard/borrow_summary",
       icon: <TbReportAnalytics size={20} />,
-      label: "Borrow Summary",
+      label: "Rent Summary",
       roles: ["admin", "staff"],
     },
   ];

@@ -54,6 +54,7 @@ const AddCornFarmerDialog = ({ onSuccess }: any) => {
     cooperative: "",
     person_to_notify_emergency: "",
     person_to_notify_emergency_contact_number: "",
+    is_ip: false,
   });
 
   const [farmProfile, setFarmProfile] = useState({
@@ -191,6 +192,7 @@ const AddCornFarmerDialog = ({ onSuccess }: any) => {
         cooperative: "",
         person_to_notify_emergency: "",
         person_to_notify_emergency_contact_number: "",
+        is_ip: false,
       });
       onSuccess?.();
 
@@ -373,7 +375,7 @@ const AddCornFarmerDialog = ({ onSuccess }: any) => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3 items-center">
+                <div className="grid grid-cols-4 gap-3 items-center">
                   <div className="col-span-1">
                     <Label>Religion</Label>
                     <Input
@@ -413,6 +415,20 @@ const AddCornFarmerDialog = ({ onSuccess }: any) => {
                       }
                     />
                     <Label>4Ps Beneficiary</Label>
+                  </div>
+
+                  <div className="flex items-center gap-2 mt-6">
+                    <input
+                      type="checkbox"
+                      checked={newFarmer.is_ip}
+                      onChange={(e) =>
+                        setNewFarmer({
+                          ...newFarmer,
+                          is_ip: e.target.checked,
+                        })
+                      }
+                    />
+                    <Label>IP Member</Label>
                   </div>
                 </div>
               </CardContent>

@@ -18,6 +18,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, X } from "lucide-react";
 import { format } from "date-fns";
+import * as XLSX from "xlsx";
 
 const Transactions = () => {
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -86,6 +87,26 @@ const Transactions = () => {
 
   const clearDate = () => setSelectedDate(null);
 
+  // 📤 EXPORT TO EXCEL FUNCTION
+  const exportToExcel = () => {
+    const exportData = filteredTransactions.map((t) => ({
+      Farmer: t.farmers ? `${t.farmers.firstname} ${t.farmers.lastname}` : "—",
+      Staff: t.staff ? `${t.staff.firstname} ${t.staff.lastname}` : "—",
+      Item: t.items?.name || "—",
+      Quantity: t.quantity,
+      "Date Acquired": new Date(t.created_at).toLocaleString("en-PH", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }),
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Transactions");
+
+    XLSX.writeFile(workbook, "Transactions.xlsx");
+  };
+
   return (
     <div className="p-6 space-y-4">
       <h1 className="text-xl font-semibold">Transactions</h1>
@@ -126,50 +147,17 @@ const Transactions = () => {
               <X className="w-4 h-4" />
             </Button>
           )}
+
+          {/* 📤 EXPORT BUTTON */}
+          <Button className="ml-3" onClick={exportToExcel}>
+            Export Excel
+          </Button>
         </div>
       </div>
 
-      {/* 🧾 Transactions Table or Skeleton */}
+      {/* 🧾 Transactions Table */}
       {loading ? (
-        // 🦴 Skeleton Loader
-        <div className="border rounded-lg shadow-sm overflow-x-auto mt-4 animate-pulse">
-          <div className="p-4 space-y-3">
-            <div className="h-6 bg-gray-200 rounded w-1/3"></div>
-            <div className="h-6 bg-gray-200 rounded w-1/4"></div>
-          </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Farmer</TableHead>
-                <TableHead>Staff</TableHead>
-                <TableHead>Item</TableHead>
-                <TableHead>Quantity</TableHead>
-                <TableHead>Date Acquired</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {[...Array(6)].map((_, i) => (
-                <TableRow key={i}>
-                  <TableCell>
-                    <div className="h-4 bg-gray-200 rounded w-24"></div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="h-4 bg-gray-200 rounded w-24"></div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="h-4 bg-gray-200 rounded w-32"></div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="h-4 bg-gray-200 rounded w-16"></div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="h-4 bg-gray-200 rounded w-28"></div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <p>Loading...</p>
       ) : filteredTransactions.length === 0 ? (
         <p className="text-gray-500 mt-4">No transactions found.</p>
       ) : (
