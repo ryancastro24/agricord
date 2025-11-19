@@ -29,6 +29,7 @@ import {
   SelectTrigger,
   SelectContent,
   SelectItem,
+  SelectValue,
 } from "@/components/ui/select";
 
 type Farmer = {
@@ -65,6 +66,7 @@ const BorrowMachine = () => {
   const [dateReturn, setDateReturn] = useState<string>("");
   const [remarks, setRemarks] = useState<string>("");
   const [submitting, setSubmitting] = useState<boolean>(false);
+  const [condition, setCondition] = useState<string>("");
 
   // 📷 Scan QR Code
   const handleScan = async (results: any) => {
@@ -122,6 +124,7 @@ const BorrowMachine = () => {
   const handleBorrow = async () => {
     if (!selectedFarmer || !dateBorrowed || !dateReturn || !machine) return;
 
+    if (submitting) return;
     setSubmitting(true);
 
     const { error: borrowError } = await supabase
@@ -159,62 +162,109 @@ const BorrowMachine = () => {
     await fetchMachine(machine.reference_number);
   };
 
-  // 🔁 Return Machine
+  // 🔁 Return Machine (robust, prevents spam, finds unreturned borrow record)
   const handleReturn = async () => {
     if (!machine) return;
+
+    // prevent double submissions
+    if (submitting) return;
     setSubmitting(true);
-    const today = new Date().toISOString().split("T")[0];
 
-    // Find the most recent borrow record
-    const { data: borrowRecord, error: fetchError } = await supabase
-      .from("borrow_farming_tools")
-      .select("id")
-      .eq("machinery_id", machine.id)
-      .order("date_borrowed", { ascending: false })
-      .limit(1)
-      .single();
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      console.log("Returning on:", today);
 
-    if (fetchError || !borrowRecord) {
-      alert("❌ No borrow record found for this machine.");
+      // 1) Find the most recent borrow record for this machine that hasn't been returned yet
+      const { data: borrowRecords, error: fetchError } = await supabase
+        .from("borrow_farming_tools")
+        .select("*")
+        .eq("machinery_id", machine.id)
+        .is("date_returned", null) // only active/unreturned borrows
+        .order("date_borrowed", { ascending: false })
+        .limit(1);
+
+      if (fetchError) {
+        console.error("Fetch borrow record error:", fetchError);
+        alert("❌ Failed to find borrow record. See console for details.");
+        setSubmitting(false);
+        return;
+      }
+
+      const borrowRecord = (borrowRecords && borrowRecords[0]) || null;
+
+      if (!borrowRecord) {
+        // No active (unreturned) borrow found — maybe already returned
+        alert("❌ No active borrow record found for this machine.");
+        setSubmitting(false);
+        return;
+      }
+
+      console.log("Found borrow record to update:", borrowRecord);
+
+      // 2) Update the borrow record with return details
+      const { data: updatedBorrowData, error: updateBorrowError } =
+        await supabase
+          .from("borrow_farming_tools")
+          .update({
+            remarks: remarks || "Returned successfully",
+            date_returned: today,
+          })
+          .eq("id", borrowRecord.id)
+          .select(); // return updated row(s)
+
+      if (updateBorrowError) {
+        console.error("Error updating borrow record:", updateBorrowError);
+        alert("❌ Failed to update borrow record.");
+        setSubmitting(false);
+        return;
+      }
+
+      if (!updatedBorrowData || updatedBorrowData.length === 0) {
+        console.warn(
+          "No rows updated in borrow_farming_tools for id:",
+          borrowRecord.id
+        );
+        alert(
+          "⚠️ Return recorded but could not verify update on borrow record."
+        );
+        // continue to try updating machine availability below
+      } else {
+        console.log("Borrow record updated:", updatedBorrowData[0]);
+      }
+
+      // 3) Update machine availability and status (condition)
+      const { data: updatedMachineData, error: updateMachineError } =
+        await supabase
+          .from("farming_tools")
+          .update({
+            is_available: true,
+            status: condition || machine.status || null,
+          })
+          .eq("id", machine.id)
+          .select();
+
+      if (updateMachineError) {
+        console.error("Error updating machine:", updateMachineError);
+        alert(
+          "⚠️ Return recorded, but failed to update machine status/availability."
+        );
+        // don't return — we still want to refresh UI
+      } else {
+        console.log("Machine updated:", updatedMachineData?.[0]);
+      }
+
+      // 4) Success UI
+      setReturnDialogOpen(false);
+      setRemarks("");
+      setCondition("");
+      alert("✅ Machine successfully returned!");
+      await fetchMachine(machine.reference_number);
+    } catch (err) {
+      console.error("Unexpected error in handleReturn:", err);
+      alert("❌ Unexpected error. See console for details.");
+    } finally {
       setSubmitting(false);
-      return;
     }
-
-    // Update borrow record with return details
-    const { error: updateBorrowError } = await supabase
-      .from("borrow_farming_tools")
-      .update({
-        remarks: remarks || "Returned successfully",
-        date_returned: today,
-      })
-      .eq("id", borrowRecord.id);
-
-    if (updateBorrowError) {
-      console.error("Error updating borrow record:", updateBorrowError.message);
-      alert("❌ Failed to update borrow record.");
-      setSubmitting(false);
-      return;
-    }
-
-    // Mark machine as available again
-    const { error: updateMachineError } = await supabase
-      .from("farming_tools")
-      .update({ is_available: true })
-      .eq("id", machine.id);
-
-    if (updateMachineError) {
-      console.error(
-        "Error updating machine availability:",
-        updateMachineError.message
-      );
-      alert("⚠️ Return recorded, but failed to update machine availability.");
-    }
-
-    setSubmitting(false);
-    setReturnDialogOpen(false);
-    setRemarks("");
-    alert("✅ Machine successfully returned!");
-    await fetchMachine(machine.reference_number);
   };
 
   return (
@@ -346,15 +396,21 @@ const BorrowMachine = () => {
                   onOpenChange={setReturnDialogOpen}
                 >
                   <DialogTrigger asChild>
-                    <Button className="mt-5 w-full bg-yellow-600 hover:bg-yellow-700">
+                    <Button
+                      className="mt-5 w-full bg-yellow-600 hover:bg-yellow-700"
+                      disabled={submitting}
+                    >
                       <FiCornerUpLeft className="mr-2" /> Machine Return
                     </Button>
                   </DialogTrigger>
+
                   <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                       <DialogTitle>Return Machine</DialogTitle>
                     </DialogHeader>
+
                     <div className="grid gap-3 py-2">
+                      {/* Remarks */}
                       <Label>
                         <FiMessageSquare className="inline mr-1" /> Remarks
                       </Label>
@@ -364,7 +420,27 @@ const BorrowMachine = () => {
                         value={remarks}
                         onChange={(e) => setRemarks(e.target.value)}
                       />
+
+                      {/* Machine Condition */}
+                      <Label className="mt-3">Machine Condition</Label>
+                      <Select
+                        value={condition}
+                        onValueChange={(val) => setCondition(val)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select condition" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="okay">Okay</SelectItem>
+                          <SelectItem value="under_maintenance">
+                            Under Maintenance
+                          </SelectItem>
+                          <SelectItem value="damaged">Damaged</SelectItem>
+                          <SelectItem value="inactive">Inactive</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
+
                     <DialogFooter>
                       <Button onClick={handleReturn} disabled={submitting}>
                         {submitting && (
@@ -377,14 +453,16 @@ const BorrowMachine = () => {
                 </Dialog>
 
                 <div className="mt-5 p-4 bg-yellow-100 text-yellow-800 rounded-md text-center font-medium">
-                  {" "}
-                  ⚠️ This machine is currently unavailable for borrowing.{" "}
+                  ⚠️ This machine is currently unavailable for borrowing.
                 </div>
               </>
             ) : (
               <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button className="mt-4 w-full md:w-auto">
+                  <Button
+                    className="mt-4 w-full md:w-auto"
+                    disabled={submitting}
+                  >
                     Borrow This Machine
                   </Button>
                 </DialogTrigger>
@@ -418,7 +496,7 @@ const BorrowMachine = () => {
                       <Label>
                         <FiUser className="inline mr-1" /> Select Farmer
                       </Label>
-                      <Select onValueChange={setSelectedFarmer}>
+                      <Select onValueChange={(val) => setSelectedFarmer(val)}>
                         <SelectTrigger className="w-full">
                           {selectedFarmer
                             ? `${
