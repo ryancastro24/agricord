@@ -26,6 +26,8 @@ import QRCode from "qrcode";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import { FiDownload } from "react-icons/fi";
+import { LuPencil } from "react-icons/lu";
+
 interface Machine {
   id: string;
   reference_number: string;
@@ -43,7 +45,9 @@ const MachineryInventory: React.FC = () => {
   const [filterType, setFilterType] = useState("");
   const [filterAvailability, setFilterAvailability] = useState("");
   const [openDialog, setOpenDialog] = useState(false);
+  const [openEditDialog, setOpenEditDialog] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -52,8 +56,16 @@ const MachineryInventory: React.FC = () => {
   const [color, setColor] = useState("");
   const [type, setType] = useState("");
 
+  const [editMachine, setEditMachine] = useState<Machine | null>(null);
+  const [editReferenceNumber, setEditReferenceNumber] = useState("");
+  const [editStatus, setEditStatus] = useState("");
+  const [editColor, setEditColor] = useState("");
+  const [editType, setEditType] = useState("");
+  const [editImageData, setEditImageData] = useState<string | null>(null);
+
   const [imageData, setImageData] = useState<string | null>(null);
   const webcamRef = useRef<Webcam>(null);
+  const editWebcamRef = useRef<Webcam>(null);
 
   // 🧩 Auto-load machines
   useEffect(() => {
@@ -89,6 +101,13 @@ const MachineryInventory: React.FC = () => {
     if (webcamRef.current) {
       const img = webcamRef.current.getScreenshot();
       setImageData(img || null);
+    }
+  };
+
+  const captureEditImage = () => {
+    if (editWebcamRef.current) {
+      const img = editWebcamRef.current.getScreenshot();
+      setEditImageData(img || null);
     }
   };
 
@@ -143,7 +162,6 @@ const MachineryInventory: React.FC = () => {
       if (error) throw error;
 
       try {
-        // Upload photo if available
         if (imageData) {
           const imageUrl = await uploadImage(
             `tools-image/${referenceNumber}.png`,
@@ -155,7 +173,6 @@ const MachineryInventory: React.FC = () => {
             .eq("id", inserted.id);
         }
 
-        // Upload QR code and store URL to farming_tools.qrcode
         const qrUrl = await uploadQRCode(referenceNumber);
         await supabase
           .from("farming_tools")
@@ -175,6 +192,58 @@ const MachineryInventory: React.FC = () => {
       toast.error("Failed to add machine.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ✏️ Open edit dialog
+  const openEdit = (machine: Machine) => {
+    setEditMachine(machine);
+    setEditReferenceNumber(machine.reference_number);
+    setEditStatus(machine.status);
+    setEditColor(machine.color);
+    setEditType(machine.type);
+    setEditImageData(null);
+    setOpenEditDialog(true);
+  };
+
+  // 💾 Save machine edits
+  const handleSaveEdit = async () => {
+    if (!editMachine) return;
+
+    setEditLoading(true);
+
+    try {
+      let updatedImageUrl = editMachine.image;
+
+      // Upload new image if recaptured
+      if (editImageData) {
+        updatedImageUrl = await uploadImage(
+          `tools-image/${editReferenceNumber}.png`,
+          editImageData
+        );
+      }
+
+      const { error } = await supabase
+        .from("farming_tools")
+        .update({
+          reference_number: editReferenceNumber,
+          status: editStatus,
+          color: editColor,
+          type: editType,
+          image: updatedImageUrl,
+        })
+        .eq("id", editMachine.id);
+
+      if (error) throw error;
+
+      toast.success("Machine updated successfully!");
+      setOpenEditDialog(false);
+      fetchMachines();
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to update machine.");
+    } finally {
+      setEditLoading(false);
     }
   };
 
@@ -210,7 +279,6 @@ const MachineryInventory: React.FC = () => {
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
 
-    // 2x2 inch = ~50.8mm
     const qrSize = 50.8;
     const cols = Math.floor(pageWidth / qrSize);
     const rows = Math.floor(pageHeight / qrSize);
@@ -340,7 +408,6 @@ const MachineryInventory: React.FC = () => {
                 </div>
 
                 <div>
-                  {/* 📸 Machine Photo */}
                   <div className="space-y-2">
                     <Label>Machine Photo</Label>
                     <Webcam
@@ -380,7 +447,103 @@ const MachineryInventory: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* 🔄 Skeleton Loader */}
+      {/* Edit Dialog */}
+      {editMachine && (
+        <Dialog open={openEditDialog} onOpenChange={setOpenEditDialog}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Edit Machine</DialogTitle>
+            </DialogHeader>
+
+            <div className="grid grid-cols-2 gap-5">
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-2">
+                  <Label>Reference Number</Label>
+                  <Input
+                    value={editReferenceNumber}
+                    onChange={(e) => setEditReferenceNumber(e.target.value)}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <Label>Color</Label>
+                  <Input
+                    value={editColor}
+                    onChange={(e) => setEditColor(e.target.value)}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <Label>Type</Label>
+                  <Select value={editType} onValueChange={setEditType}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="tractor">Tractor</SelectItem>
+                      <SelectItem value="dryer">Dryer</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <Label>Status</Label>
+                  <Select value={editStatus} onValueChange={setEditStatus}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="okay">Okay</SelectItem>
+                      <SelectItem value="under maintenance">
+                        Under Maintenance
+                      </SelectItem>
+                      <SelectItem value="damaged">Damaged</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <div className="space-y-2">
+                  <Label>Retake Image (Optional)</Label>
+                  <Webcam
+                    ref={editWebcamRef}
+                    audio={false}
+                    screenshotFormat="image/png"
+                    width={320}
+                    height={240}
+                    className="rounded-md border"
+                  />
+                  <Button
+                    variant="secondary"
+                    className="w-full cursor-pointer"
+                    onClick={captureEditImage}
+                  >
+                    Capture New Image
+                  </Button>
+
+                  {(editImageData || editMachine.image) && (
+                    <img
+                      src={editImageData || editMachine.image}
+                      alt="Machine Preview"
+                      className="w-40 h-40 border rounded-md object-cover"
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button onClick={handleSaveEdit} disabled={editLoading}>
+                {editLoading ? "Saving..." : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* 🌀 Machine Grid */}
       {fetching ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -428,7 +591,6 @@ const MachineryInventory: React.FC = () => {
                         alt="Machine QR"
                         className="w-12 h-12 object-cover rounded-lg border cursor-pointer"
                       />
-                      {/* Hover Download Icon */}
                       <div
                         onClick={() => handleDownloadPDF(m)}
                         className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg cursor-pointer"
@@ -439,20 +601,32 @@ const MachineryInventory: React.FC = () => {
                     </div>
                   )}
 
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => handleDelete(m.id)}
-                    disabled={deletingId === m.id}
-                  >
-                    {deletingId === m.id ? (
-                      "Deleting..."
-                    ) : (
-                      <>
-                        <LuTrash2 className="mr-1" /> Remove
-                      </>
-                    )}
-                  </Button>
+                  <div className="flex gap-2">
+                    {/* Edit Button */}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => openEdit(m)}
+                    >
+                      <LuPencil className="mr-1" /> Edit
+                    </Button>
+
+                    {/* Delete Button */}
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => handleDelete(m.id)}
+                      disabled={deletingId === m.id}
+                    >
+                      {deletingId === m.id ? (
+                        "Deleting..."
+                      ) : (
+                        <>
+                          <LuTrash2 className="mr-1" /> Remove
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

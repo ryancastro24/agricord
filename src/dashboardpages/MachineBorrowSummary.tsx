@@ -18,6 +18,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import supabase from "@/db/config";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
 // ✅ TypeScript Interfaces
 interface Farmer {
@@ -98,6 +100,43 @@ const MachineBorrowSummary: React.FC = () => {
     }
   };
 
+  // ✅ Convert Records to Excel and Trigger Download
+  const exportToExcel = () => {
+    const excelData = records.map((item) => ({
+      Reference_Number: item.farming_tools?.reference_number || "N/A",
+      Machine_Type: item.farming_tools?.type || "N/A",
+      Farmer_Name: item.farmers
+        ? `${item.farmers.firstname} ${item.farmers.lastname}`
+        : "Unknown",
+      Date_Borrowed: item.date_borrowed || "N/A",
+      Scheduled_Return: item.date_scheduled_returned || "N/A",
+      Date_Returned: item.date_returned || "Processing",
+      Remarks: item.remarks || "None",
+      Status: item.farming_tools?.status || "Unknown",
+      Availability: item.farming_tools?.is_available
+        ? "Available"
+        : item.farming_tools?.is_available === false
+        ? "Not Available"
+        : "Unknown",
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Borrowed Machines");
+
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: "xlsx",
+      type: "array",
+    });
+
+    const file = new Blob([excelBuffer], {
+      type: "application/octet-stream",
+    });
+
+    saveAs(file, "machine_borrow_summary.xlsx");
+  };
+
   return (
     <div className="p-6 space-y-6">
       <h2 className="text-xl font-bold">Machine Borrow Summary</h2>
@@ -105,7 +144,7 @@ const MachineBorrowSummary: React.FC = () => {
       {/* Filters */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div>
-          <Label>Search (Farmer / Reference No.)</Label>
+          <Label>Search Farmer</Label>
           <Input
             type="text"
             placeholder="Enter farmer name or reference number"
@@ -147,8 +186,12 @@ const MachineBorrowSummary: React.FC = () => {
         </div>
       </div>
 
-      <div>
+      <div className="flex gap-2">
         <Button onClick={fetchBorrowedMachines}>Search</Button>
+        {/* ✅ Excel Button */}
+        <Button onClick={exportToExcel} variant="secondary">
+          Download Excel
+        </Button>
       </div>
 
       {/* Table */}
