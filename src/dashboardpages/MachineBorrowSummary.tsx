@@ -21,7 +21,7 @@ import supabase from "@/db/config";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 
-// ✅ TypeScript Interfaces
+// Interfaces
 interface Farmer {
   firstname: string;
   lastname: string;
@@ -40,68 +40,101 @@ interface BorrowRecord {
   date_returned: string | null;
   date_scheduled_returned: string | null;
   remarks: string | null;
-  status: string | null;
-  is_available: boolean | null;
   farmers?: Farmer | null;
   farming_tools?: MachineryDetails | null;
 }
 
 const MachineBorrowSummary: React.FC = () => {
+  const [allRecords, setAllRecords] = useState<BorrowRecord[]>([]);
   const [records, setRecords] = useState<BorrowRecord[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [borrowDate, setBorrowDate] = useState<string>("");
   const [scheduledReturnDate, setScheduledReturnDate] = useState<string>("");
   const [actualReturnDate, setActualReturnDate] = useState<string>("");
 
+  // Fetch all records only once
   useEffect(() => {
-    fetchBorrowedMachines();
+    fetchAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, borrowDate, scheduledReturnDate, actualReturnDate]);
+  }, []);
 
-  const fetchBorrowedMachines = async (): Promise<void> => {
-    let query = supabase.from("borrow_farming_tools").select(
-      `
+  const fetchAll = async (): Promise<void> => {
+    try {
+      const { data, error } = await supabase
+        .from("borrow_farming_tools")
+        .select(
+          `
         id,
         date_borrowed,
         date_returned,
         date_scheduled_returned,
         remarks,
-        
-        farmers (
-          firstname,
-          lastname
-        ),
-        farming_tools (
-          reference_number,
-          type,
-          status,
-          is_available
-        )
-        `
-    );
+        farmers ( firstname, lastname ),
+        farming_tools ( reference_number, type, status, is_available )
+      `
+        );
 
-    if (searchTerm) {
-      query = query.or(
-        `farmers.lastname.ilike.%${searchTerm}%,farming_tools.reference_number.ilike.%${searchTerm}%`
-      );
-    }
+      if (error) {
+        console.error("Supabase fetch error:", error);
+        return;
+      }
 
-    if (borrowDate) query = query.eq("date_borrowed", borrowDate);
-    if (scheduledReturnDate)
-      query = query.eq("date_scheduled_returned", scheduledReturnDate);
-    if (actualReturnDate) query = query.eq("date_returned", actualReturnDate);
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error("Error fetching borrow records:", error);
-    } else {
-      setRecords((data as any) || []);
+      const safeData = (data as any) || [];
+      setAllRecords(safeData);
+      setRecords(safeData);
+    } catch (err) {
+      console.error("Unexpected fetch error:", err);
     }
   };
 
-  // ✅ Convert Records to Excel and Trigger Download
-  const exportToExcel = () => {
+  // Local filtering only (no additional DB queries)
+  useEffect(() => {
+    const term = searchTerm.trim().toLowerCase();
+    let filtered = [...allRecords];
+
+    if (term !== "") {
+      filtered = filtered.filter((item) => {
+        const firstname = (item.farmers?.firstname || "").toLowerCase();
+        const lastname = (item.farmers?.lastname || "").toLowerCase();
+        const fullName = `${firstname} ${lastname}`.trim();
+        const ref = (item.farming_tools?.reference_number || "").toLowerCase();
+
+        return (
+          fullName.includes(term) ||
+          firstname.includes(term) ||
+          lastname.includes(term) ||
+          ref.includes(term)
+        );
+      });
+    }
+
+    if (borrowDate) {
+      filtered = filtered.filter((item) => item.date_borrowed === borrowDate);
+    }
+
+    if (scheduledReturnDate) {
+      filtered = filtered.filter(
+        (item) => item.date_scheduled_returned === scheduledReturnDate
+      );
+    }
+
+    if (actualReturnDate) {
+      filtered = filtered.filter(
+        (item) => item.date_returned === actualReturnDate
+      );
+    }
+
+    setRecords(filtered);
+  }, [
+    searchTerm,
+    borrowDate,
+    scheduledReturnDate,
+    actualReturnDate,
+    allRecords,
+  ]);
+
+  // Export to Excel (exports currently filtered records)
+  const exportToExcel = (): void => {
     const excelData = records.map((item) => ({
       Reference_Number: item.farming_tools?.reference_number || "N/A",
       Machine_Type: item.farming_tools?.type || "N/A",
@@ -122,7 +155,6 @@ const MachineBorrowSummary: React.FC = () => {
 
     const worksheet = XLSX.utils.json_to_sheet(excelData);
     const workbook = XLSX.utils.book_new();
-
     XLSX.utils.book_append_sheet(workbook, worksheet, "Borrowed Machines");
 
     const excelBuffer = XLSX.write(workbook, {
@@ -154,6 +186,7 @@ const MachineBorrowSummary: React.FC = () => {
             }
           />
         </div>
+
         <div>
           <Label>Borrow Date</Label>
           <Input
@@ -164,6 +197,7 @@ const MachineBorrowSummary: React.FC = () => {
             }
           />
         </div>
+
         <div>
           <Label>Scheduled Return Date</Label>
           <Input
@@ -174,6 +208,7 @@ const MachineBorrowSummary: React.FC = () => {
             }
           />
         </div>
+
         <div>
           <Label>Actual Return Date</Label>
           <Input
@@ -186,9 +221,8 @@ const MachineBorrowSummary: React.FC = () => {
         </div>
       </div>
 
+      {/* Only Excel Button */}
       <div className="flex gap-2">
-        <Button onClick={fetchBorrowedMachines}>Search</Button>
-        {/* ✅ Excel Button */}
         <Button onClick={exportToExcel} variant="secondary">
           Download Excel
         </Button>
@@ -208,10 +242,11 @@ const MachineBorrowSummary: React.FC = () => {
               <TableHead>Action</TableHead>
             </TableRow>
           </TableHeader>
+
           <TableBody>
             {records.length > 0 ? (
               records.map((item) => (
-                <TableRow key={item.id}>
+                <TableRow key={String(item.id)}>
                   <TableCell>
                     {item.farming_tools?.reference_number || "N/A"}
                   </TableCell>
@@ -230,6 +265,7 @@ const MachineBorrowSummary: React.FC = () => {
                       <span className="text-yellow-600">Processing</span>
                     )}
                   </TableCell>
+
                   <TableCell>
                     <Dialog>
                       <DialogTrigger asChild>
@@ -237,27 +273,26 @@ const MachineBorrowSummary: React.FC = () => {
                           More
                         </Button>
                       </DialogTrigger>
+
                       <DialogContent className="w-[500px]">
                         <DialogHeader>
                           <DialogTitle>Borrow Details</DialogTitle>
                         </DialogHeader>
+
                         <div className="space-y-2 mt-2">
                           <p>
                             <strong>Remarks:</strong>{" "}
-                            {item.remarks ? item.remarks : "No remarks"}
+                            {item.remarks || "No remarks"}
                           </p>
+
                           <p>
                             <strong>Available:</strong>{" "}
-                            {item.farming_tools?.is_available
-                              ? "✅ Yes"
-                              : item.farming_tools?.is_available === false
-                              ? "❌ No"
-                              : "Unknown"}
+                            {item.farming_tools?.is_available ? "Yes" : "No"}
                           </p>
+
                           <p>
                             <strong>Status:</strong>{" "}
-                            {item.farming_tools?.status ||
-                              "No status available"}
+                            {item.farming_tools?.status || "Unknown"}
                           </p>
                         </div>
                       </DialogContent>
