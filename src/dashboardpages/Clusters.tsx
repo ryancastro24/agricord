@@ -408,7 +408,8 @@ const Clusters = () => {
                 setNewCluster({ ...newCluster, cluster_name: e.target.value })
               }
             />
-            <div>
+            <div className="relative">
+              {/* Display selected barangays */}
               <div className="flex flex-wrap gap-2 mb-2">
                 {selectedBarangays.map((b) => (
                   <div
@@ -431,24 +432,48 @@ const Clusters = () => {
                 ))}
               </div>
 
-              <Select
-                onValueChange={(val) => {
-                  if (!selectedBarangays.includes(val)) {
-                    setSelectedBarangays((prev) => [...prev, val]);
-                  }
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select Barangay" />
-                </SelectTrigger>
-                <SelectContent className="max-h-40 overflow-y-auto">
-                  {barangaysData.map((b) => (
-                    <SelectItem key={b} value={b}>
-                      {b}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {/* Search Input */}
+              <Input
+                placeholder="Search Barangay..."
+                value={chairmanSearch} // reuse a temp state like 'barangaySearch'
+                onChange={(e) => setChairmanSearch(e.target.value)}
+                className="w-full"
+              />
+
+              {/* Filtered barangays dropdown */}
+              {chairmanSearch && (
+                <ul className="absolute z-10 w-full bg-white border rounded-md max-h-40 overflow-y-auto mt-1 shadow-md">
+                  {barangaysData
+                    .filter(
+                      (b) =>
+                        b
+                          .toLowerCase()
+                          .includes(chairmanSearch.toLowerCase()) &&
+                        !selectedBarangays.includes(b)
+                    )
+                    .map((b) => (
+                      <li
+                        key={b}
+                        className="px-3 py-2 hover:bg-green-100 cursor-pointer"
+                        onClick={() => {
+                          setSelectedBarangays((prev) => [...prev, b]);
+                          setChairmanSearch(""); // clear search input
+                        }}
+                      >
+                        {b}
+                      </li>
+                    ))}
+                  {barangaysData.filter(
+                    (b) =>
+                      b.toLowerCase().includes(chairmanSearch.toLowerCase()) &&
+                      !selectedBarangays.includes(b)
+                  ).length === 0 && (
+                    <li className="px-3 py-2 text-gray-500">
+                      No barangay found
+                    </li>
+                  )}
+                </ul>
+              )}
             </div>
 
             <div>
