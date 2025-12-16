@@ -423,7 +423,7 @@ const ScanFarmer = () => {
                           <DialogHeader>
                             <DialogTitle>Scan Goods</DialogTitle>
                             <DialogDescription>
-                              Use the scanner below to record collected goods.
+                              Select items collected by the farmer below.
                             </DialogDescription>
                           </DialogHeader>
 

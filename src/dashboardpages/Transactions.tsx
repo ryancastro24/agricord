@@ -166,7 +166,7 @@ const Transactions = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Farmer</TableHead>
-                <TableHead>Staff</TableHead>
+                <TableHead>Distributed By</TableHead>
                 <TableHead>Item</TableHead>
                 <TableHead>Quantity</TableHead>
                 <TableHead>Date Acquired</TableHead>

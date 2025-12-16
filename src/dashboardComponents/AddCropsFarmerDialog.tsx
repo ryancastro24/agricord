@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -27,8 +27,6 @@ const AddCropsFarmerDialog = ({ onSuccess }: any) => {
 
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [idImage, setIdImage] = useState<string | null>(null);
-  const [clusters, setClusters] = useState<any[]>([]);
-  const [selectedClusterId, setSelectedClusterId] = useState<string>("");
 
   const [newFarmer, setNewFarmer] = useState({
     id_number: "",
@@ -82,19 +80,6 @@ const AddCropsFarmerDialog = ({ onSuccess }: any) => {
       setIdImage(img || null);
     }
   };
-
-  useEffect(() => {
-    const fetchClusters = async () => {
-      const { data, error } = await supabase
-        .from("clusters")
-        .select("id, name")
-        .order("name", { ascending: true });
-
-      if (!error && data) setClusters(data);
-    };
-
-    fetchClusters();
-  }, []);
 
   // 📤 Upload helper
   const uploadImage = async (path: string, base64Img: string) => {
@@ -150,6 +135,7 @@ const AddCropsFarmerDialog = ({ onSuccess }: any) => {
   // 🧾 Save new farmer
   const handleAddFarmer = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!newFarmer.firstname || !newFarmer.lastname || !newFarmer.id_number) {
       toast.error("Please complete all required fields.");
       return;
@@ -158,33 +144,58 @@ const AddCropsFarmerDialog = ({ onSuccess }: any) => {
     try {
       setLoading(true);
 
+      // 1️⃣ Insert farmer
       const { data: insertedFarmer, error: insertError } = await supabase
         .from("farmers")
         .insert([newFarmer])
         .select()
         .single();
 
-      if (selectedClusterId) {
-        const { error: clusterError } = await supabase
-          .from("farmer_clusters")
-          .insert([
-            {
-              farmer_id: insertedFarmer.id,
-              cluster_id: selectedClusterId,
-            },
-          ]);
-
-        if (clusterError) throw clusterError;
-      }
-
       if (insertError) throw insertError;
 
+      // 2️⃣ Find matching cluster based on barangay
+      const farmerBarangay = newFarmer.barangay?.toLowerCase().trim();
+
+      console.log("Farmer barangay:", farmerBarangay);
+      if (farmerBarangay) {
+        const { data: clusters } = await supabase
+          .from("clusters")
+          .select("id, barangay");
+
+        const matchedCluster = clusters?.find((cluster) =>
+          cluster.barangay.some(
+            (b: string) => b.toLowerCase() === farmerBarangay.toLowerCase()
+          )
+        );
+
+        console.log("Matched cluster data:", matchedCluster);
+
+        console.log("Matched cluster:", matchedCluster);
+        // 3️⃣ Assign farmer to cluster if found
+        if (matchedCluster) {
+          const { data, error: clusterInsertError } = await supabase
+            .from("farmer_clusters")
+            .insert([
+              {
+                farmer_id: insertedFarmer.id,
+                cluster_id: matchedCluster.id,
+              },
+            ]);
+
+          console.log("farmer cluster data:", data);
+
+          if (clusterInsertError) throw clusterInsertError;
+        }
+      }
+
+      // 4️⃣ Insert farm profile
       const { error: profileError } = await supabase
         .from("farm_profile")
         .insert([{ farmer_id: insertedFarmer.id, ...farmProfile }]);
 
       if (profileError) throw profileError;
 
+      // 5️⃣ Upload files (non-blocking)
       try {
         await handleUploads(insertedFarmer.id, newFarmer.id_number);
       } catch (uploadErr) {
@@ -193,8 +204,9 @@ const AddCropsFarmerDialog = ({ onSuccess }: any) => {
       }
 
       toast.success("✅ Farmer successfully added!");
-      setSelectedClusterId("");
       setOpen(false);
+
+      // Reset form
       setNewFarmer({
         id_number: "",
         firstname: "",
@@ -223,10 +235,11 @@ const AddCropsFarmerDialog = ({ onSuccess }: any) => {
         person_to_notify_emergency_contact_number: "",
         is_ip: false,
       });
-      onSuccess?.();
 
       setProfileImage(null);
       setIdImage(null);
+
+      onSuccess?.();
     } catch (error) {
       console.error("🔥 Add farmer failed:", error);
       toast.error("Failed to add farmer.");
@@ -695,7 +708,7 @@ const AddCropsFarmerDialog = ({ onSuccess }: any) => {
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-2">
+                {/* <div className="flex flex-col gap-2">
                   <Label htmlFor="cluster">Cluster</Label>
                   <select
                     id="cluster"
@@ -706,11 +719,11 @@ const AddCropsFarmerDialog = ({ onSuccess }: any) => {
                     <option value="">Select Cluster</option>
                     {clusters.map((cluster) => (
                       <option key={cluster.id} value={cluster.id}>
-                        {cluster.name}
+                        {cluster.cluster_name}
                       </option>
                     ))}
                   </select>
-                </div>
+                </div> */}
               </CardContent>
             </Card>
           </TabsContent>
