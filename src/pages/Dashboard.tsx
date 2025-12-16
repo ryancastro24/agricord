@@ -300,19 +300,8 @@ const Dashboard = () => {
       {/* MAIN */}
       <div className="flex-1 flex flex-col">
         <header className="h-12 border-b flex items-center justify-between px-3">
-          {/* Left: Avatar + User Info (mobile only) */}
-          <div className="flex items-center gap-2 md:hidden">
-            <Avatar>
-              <AvatarImage src="https://github.com/shadcn.png" />
-              <AvatarFallback>CN</AvatarFallback>
-            </Avatar>
-            <div className="flex flex-col text-sm">
-              <span className="font-bold truncate">
-                {data?.user?.user_metadata?.lastname}
-              </span>
-              <span className="capitalize text-xs">{role}</span>
-            </div>
-          </div>
+          {/* Left: Avatar + User Info */}
+          <div className="flex items-center gap-2"></div>
 
           {/* Right: Burger button (mobile only) and Logout (desktop only) */}
           <div className="flex items-center gap-2">

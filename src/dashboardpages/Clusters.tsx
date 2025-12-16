@@ -104,6 +104,7 @@ const Clusters = () => {
   const [clusterList, setClusters] = useState<Cluster[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [farmerSearch, setFarmerSearch] = useState("");
 
   const [openCluster, setOpenCluster] = useState<Cluster | null>(null);
   const [clusterFarmers, setClusterFarmers] = useState<Farmer[]>([]);
@@ -674,21 +675,41 @@ const Clusters = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="w-full">
-              <Select onValueChange={(val) => setSelectedFarmer(val)}>
+              <Select
+                value={selectedFarmer ?? ""}
+                onValueChange={(val) => setSelectedFarmer(val)}
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select Farmer" />
                 </SelectTrigger>
-                <SelectContent className="w-full">
-                  {farmers.map((farmer) => (
-                    <SelectItem key={farmer.id} value={String(farmer.id)}>
-                      {farmer.firstname} {farmer.lastname}
-                    </SelectItem>
-                  ))}
+
+                <SelectContent className="max-h-60 overflow-y-auto">
+                  <div className="p-2">
+                    <Input
+                      placeholder="Search farmer..."
+                      value={farmerSearch}
+                      onChange={(e) => setFarmerSearch(e.target.value)}
+                      className="mb-2"
+                    />
+                  </div>
+
+                  {farmers
+                    .filter((f) =>
+                      `${f.firstname} ${f.lastname}`
+                        .toLowerCase()
+                        .includes(farmerSearch.toLowerCase())
+                    )
+                    .map((farmer) => (
+                      <SelectItem key={farmer.id} value={String(farmer.id)}>
+                        {farmer.firstname} {farmer.lastname}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
 
               <Button
                 className="mt-3 w-full"
+                disabled={!selectedFarmer}
                 onClick={handleAddFarmerToCluster}
               >
                 Add Farmer
