@@ -573,79 +573,98 @@ const AddLiveStockFarmerDialog = ({ onSuccess }: any) => {
           <TabsContent value="farm">
             <Card>
               <CardContent className="grid gap-3 py-4">
-                <div>
-                  <Label htmlFor="farmer_role">Farmer Role</Label>
-                  <select
-                    id="farmer_role"
-                    value={farmProfile.farmer_role}
-                    onChange={(e) =>
-                      setFarmProfile({
-                        ...farmProfile,
-                        farmer_role: e.target.value,
-                      })
-                    }
-                    className="border border-gray-300 rounded-md p-2 w-full"
-                  >
-                    <option value="">Select Farmer Role</option>
-                    <option value="farmer">Farmer</option>
-                    <option value="laborer">Laborer</option>
-                    <option value="fishing">Fishing</option>
-                    <option value="other">Other</option>
-                  </select>
+                <div className="grid grid-cols-2 gap-5">
+                  <div>
+                    <Label htmlFor="farmer_role">Farmer Role</Label>
+                    <select
+                      id="farmer_role"
+                      value={farmProfile.farmer_role}
+                      onChange={(e) =>
+                        setFarmProfile({
+                          ...farmProfile,
+                          farmer_role: e.target.value,
+                        })
+                      }
+                      className="border border-gray-300 rounded-md p-2 w-full"
+                    >
+                      <option value="">Select Farmer Role</option>
+                      <option value="farmer">Farmer</option>
+                      <option value="laborer">Laborer</option>
+                      <option value="fishing">Fishing</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <Label>Farmer Activity</Label>
+                    <Input
+                      value={farmProfile.farmer_activity}
+                      onChange={(e) =>
+                        setFarmProfile({
+                          ...farmProfile,
+                          farmer_activity: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
                 </div>
 
-                <Label>Farmer Activity</Label>
-                <Input
-                  value={farmProfile.farmer_activity}
-                  onChange={(e) =>
-                    setFarmProfile({
-                      ...farmProfile,
-                      farmer_activity: e.target.value,
-                    })
-                  }
-                />
-                <Label>Kind of Work</Label>
-                <Input
-                  value={farmProfile.kind_of_work}
-                  onChange={(e) =>
-                    setFarmProfile({
-                      ...farmProfile,
-                      kind_of_work: e.target.value,
-                    })
-                  }
-                />
-                <Label>Type of Fishing Activity</Label>
-                <Input
-                  value={farmProfile.type_of_fishing_activity}
-                  onChange={(e) =>
-                    setFarmProfile({
-                      ...farmProfile,
-                      type_of_fishing_activity: e.target.value,
-                    })
-                  }
-                />
-                <Label>Gross Annual Income (₱)</Label>
-                <Input
-                  type="number"
-                  value={farmProfile.gross_annual_income_last_year}
-                  onChange={(e) =>
-                    setFarmProfile({
-                      ...farmProfile,
-                      gross_annual_income_last_year: e.target.value,
-                    })
-                  }
-                />
-                <Label>Non-Gross Annual Income (₱)</Label>
-                <Input
-                  type="number"
-                  value={farmProfile.non_gross_annual_income_last_year}
-                  onChange={(e) =>
-                    setFarmProfile({
-                      ...farmProfile,
-                      non_gross_annual_income_last_year: e.target.value,
-                    })
-                  }
-                />
+                <div className="grid grid-cols-2 gap-5">
+                  <div className="flex flex-col gap-2">
+                    <Label>Kind of Work</Label>
+                    <Input
+                      value={farmProfile.kind_of_work}
+                      onChange={(e) =>
+                        setFarmProfile({
+                          ...farmProfile,
+                          kind_of_work: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Label>Type of Fishing Activity</Label>
+                    <Input
+                      value={farmProfile.type_of_fishing_activity}
+                      onChange={(e) =>
+                        setFarmProfile({
+                          ...farmProfile,
+                          type_of_fishing_activity: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-5">
+                  <div className="flex flex-col gap-2">
+                    <Label>Gross Annual Income (₱)</Label>
+                    <Input
+                      type="number"
+                      value={farmProfile.gross_annual_income_last_year}
+                      onChange={(e) =>
+                        setFarmProfile({
+                          ...farmProfile,
+                          gross_annual_income_last_year: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <Label>Non-Gross Annual Income (₱)</Label>
+                    <Input
+                      type="number"
+                      value={farmProfile.non_gross_annual_income_last_year}
+                      onChange={(e) =>
+                        setFarmProfile({
+                          ...farmProfile,
+                          non_gross_annual_income_last_year: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

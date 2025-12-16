@@ -43,7 +43,7 @@ import { FaBookmark } from "react-icons/fa6";
 import { Input } from "@/components/ui/input";
 import { useLoaderData } from "react-router-dom";
 import { Trash2 } from "lucide-react";
-
+import { barangaysData } from "@/lib/barangays";
 interface Farmer {
   id: number;
   firstname: string;
@@ -57,7 +57,7 @@ interface Cluster {
   cluster_name: string;
   category: string;
   chairman_id: string;
-  barangay: string;
+  barangay: any;
   users?: { firstname: string; lastname: string };
 }
 
@@ -103,6 +103,7 @@ const Clusters = () => {
 
   const [clusterList, setClusters] = useState<Cluster[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const [openCluster, setOpenCluster] = useState<Cluster | null>(null);
   const [clusterFarmers, setClusterFarmers] = useState<Farmer[]>([]);
@@ -115,6 +116,7 @@ const Clusters = () => {
     category: "",
   });
   const [chairmanSearch, setChairmanSearch] = useState("");
+  const [selectedBarangays, setSelectedBarangays] = useState<string[]>([]);
 
   // 🆕 Update cluster states
   const [openEditDialog, setOpenEditDialog] = useState(false);
@@ -133,22 +135,18 @@ const Clusters = () => {
 
   // ✅ Add Cluster
   const handleAddCluster = async () => {
-    if (
-      !newCluster.cluster_name ||
-      !newCluster.barangay ||
-      !newCluster.chairman_id ||
-      !newCluster.category
-    ) {
+    if (!newCluster.cluster_name || selectedBarangays.length === 0) {
       alert("Please fill out all fields.");
       return;
     }
 
-    const { data, error } = await supabase
+    // Insert
+    const { data } = await supabase
       .from("clusters")
       .insert([
         {
           cluster_name: newCluster.cluster_name,
-          barangay: newCluster.barangay,
+          barangay: selectedBarangays, // use selectedBarangays array
           chairman_id: newCluster.chairman_id,
           category: newCluster.category,
         },
@@ -156,13 +154,8 @@ const Clusters = () => {
       .select("*")
       .single();
 
-    if (error) {
-      console.error("Error adding cluster:", error);
-      alert("Failed to add cluster.");
-      return;
-    }
-
     setClusters((prev) => [...prev, data]);
+    setSelectedBarangays([]);
     setNewCluster({
       cluster_name: "",
       barangay: "",
@@ -302,69 +295,103 @@ const Clusters = () => {
   // ✅ Actual content
   return (
     <div className="p-6">
-      <div className="flex justify-between mb-6">
+      <div className="flex justify-between mb-6 w-full">
         <h2 className="text-xl font-bold">Cluster Management</h2>
-        <Button onClick={() => setOpenAddDialog(true)}>
-          <HiOutlinePlusSm /> Add Cluster
-        </Button>
+
+        <div className="flex gap-3">
+          <Input
+            type="text"
+            placeholder="Search cluster..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-60"
+          />
+
+          <Button onClick={() => setOpenAddDialog(true)}>
+            <HiOutlinePlusSm /> Add Cluster
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {clusterList.map((cluster: Cluster) => (
-          <Card key={cluster.id}>
-            <CardHeader className="flex justify-between items-center">
-              <CardTitle className="flex items-center gap-1">
-                <FaBookmark color="#00BC7D" size={15} />
-                {cluster.cluster_name}
-              </CardTitle>
+        {clusterList
+          .filter((cluster) =>
+            cluster.cluster_name
+              .toLowerCase()
+              .includes(searchTerm.toLowerCase())
+          )
+          .map((cluster: Cluster) => (
+            <Card key={cluster.id}>
+              <CardHeader className="flex justify-between items-center">
+                <CardTitle className="flex items-center gap-1">
+                  <FaBookmark color="#00BC7D" size={15} />
+                  {cluster.cluster_name}
+                </CardTitle>
 
-              {/* 🆕 Update & Delete Icons */}
-              <div className="flex">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => {
-                    setEditCluster(cluster);
-                    setOpenEditDialog(true);
-                  }}
-                >
-                  <TbEdit size={20} />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => {
-                    setClusterToDelete(cluster);
-                    setOpenDeleteDialog(true);
-                  }}
-                >
-                  <AiOutlineDelete className="w-4 h-4 text-red-600" />
-                </Button>
-              </div>
-            </CardHeader>
+                {/* 🆕 Update & Delete Icons */}
+                <div className="flex">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setEditCluster(cluster);
+                      setOpenEditDialog(true);
+                    }}
+                  >
+                    <TbEdit size={20} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setClusterToDelete(cluster);
+                      setOpenDeleteDialog(true);
+                    }}
+                  >
+                    <AiOutlineDelete className="w-4 h-4 text-red-600" />
+                  </Button>
+                </div>
+              </CardHeader>
 
-            <CardContent>
-              <p className="text-sm">
-                <strong>Category:</strong> {cluster.category}
-              </p>
-              <p className="text-sm">
-                <strong>Chairman:</strong>{" "}
-                {cluster.users
-                  ? cluster.users.firstname + " " + cluster.users?.lastname
-                  : "N/A"}
-              </p>
-              <p className="text-sm">
-                <strong>Barangay:</strong> {cluster.barangay}
-              </p>
-              <Button
-                className="mt-3 flex items-center gap-1"
-                onClick={() => setOpenCluster(cluster)}
-              >
-                <MdOutlineManageAccounts /> Manage
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
+              <CardContent>
+                <p className="text-sm">
+                  <strong>Category:</strong> {cluster.category}
+                </p>
+                <p className="text-sm">
+                  <strong>Chairman:</strong>{" "}
+                  {cluster.users
+                    ? cluster.users.firstname + " " + cluster.users?.lastname
+                    : "N/A"}
+                </p>
+                <p className="text-sm">
+                  <strong>Barangay:</strong>{" "}
+                  {cluster.barangay.map((b: any) => (
+                    <div
+                      key={b}
+                      className="inline-flex items-center bg-green-300 rounded-full border px-2 py-1 text-sm"
+                    >
+                      <span className="mr-2 leading-none text-xs">{b}</span>
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Remove ${b}`}
+                        className="h-6 w-6 p-0 rounded-full"
+                      >
+                        {/* <X className="h-3 w-3" /> */}
+                      </Button>
+                    </div>
+                  ))}
+                </p>
+                <Button
+                  className="mt-3 flex items-center gap-1"
+                  onClick={() => setOpenCluster(cluster)}
+                >
+                  <MdOutlineManageAccounts /> Manage
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
       </div>
 
       {/* Add Cluster Dialog */}
@@ -381,13 +408,49 @@ const Clusters = () => {
                 setNewCluster({ ...newCluster, cluster_name: e.target.value })
               }
             />
-            <Input
-              placeholder="Barangay"
-              value={newCluster.barangay}
-              onChange={(e) =>
-                setNewCluster({ ...newCluster, barangay: e.target.value })
-              }
-            />
+            <div>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {selectedBarangays.map((b) => (
+                  <div
+                    key={b}
+                    className="inline-flex items-center bg-green-300 rounded-full px-3 py-1 text-sm"
+                  >
+                    <span className="mr-2">{b}</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedBarangays((prev) =>
+                          prev.filter((item) => item !== b)
+                        )
+                      }
+                      className="h-5 w-5 flex items-center justify-center rounded-full bg-green-500 text-white"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <Select
+                onValueChange={(val) => {
+                  if (!selectedBarangays.includes(val)) {
+                    setSelectedBarangays((prev) => [...prev, val]);
+                  }
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select Barangay" />
+                </SelectTrigger>
+                <SelectContent className="max-h-40 overflow-y-auto">
+                  {barangaysData.map((b) => (
+                    <SelectItem key={b} value={b}>
+                      {b}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div>
               <div className="space-y-2">
                 <Select

@@ -311,10 +311,10 @@ export default function Inventory() {
           <TableHeader>
             <TableRow>
               <TableHead className="w-[80px]">Barcode</TableHead>
-              <TableHead>Name</TableHead>
+              <TableHead>Item Name</TableHead>
               <TableHead>Description</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Quantity</TableHead>
+              <TableHead>Commodity</TableHead>
+              <TableHead>Stock</TableHead>
               <TableHead className="w-[120px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -325,7 +325,14 @@ export default function Inventory() {
                 <TableCell>{item.name}</TableCell>
                 <TableCell>{item.description}</TableCell>
                 <TableCell>{item.type}</TableCell>
-                <TableCell>{item.quantity}</TableCell>
+                <TableCell className="flex items-center gap-2">
+                  {item.quantity}{" "}
+                  {item.quantity < 20 && (
+                    <div>
+                      <span className="text-red-500">(Low Stocks)</span>
+                    </div>
+                  )}
+                </TableCell>
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

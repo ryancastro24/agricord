@@ -25,6 +25,8 @@ import BorrowMachine from "./dashboardpages/BorrowMachine";
 import { Toaster } from "sonner";
 import MachineBorrowSummary from "./dashboardpages/MachineBorrowSummary";
 import NotfoundPages from "./pages/NotFoundErrorPages";
+import ChairmanRequest from "./dashboardpages/ChairmanRequest";
+import AdminItemRequestApprovals from "./dashboardpages/AdminItemRequestApprovals";
 const router = createBrowserRouter([
   // 👇 Public Login Route
   {
@@ -103,6 +105,14 @@ const router = createBrowserRouter([
         ),
       },
       {
+        path: "chairman_requests",
+        element: (
+          <ProtectedRoute allowedRoles={["chairman"]}>
+            <ChairmanRequest />
+          </ProtectedRoute>
+        ),
+      },
+      {
         path: "staffs",
         element: (
           <ProtectedRoute allowedRoles={["admin"]}>
@@ -110,6 +120,15 @@ const router = createBrowserRouter([
           </ProtectedRoute>
         ),
         loader: StaffsLoader,
+      },
+
+      {
+        path: "admin_item_request_approvals",
+        element: (
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <AdminItemRequestApprovals />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "machinery_inventory",
@@ -133,7 +152,7 @@ const router = createBrowserRouter([
       {
         path: "inventory",
         element: (
-          <ProtectedRoute allowedRoles={["admin", "staff"]}>
+          <ProtectedRoute allowedRoles={["admin", "staff", "chairman"]}>
             <Inventory />
           </ProtectedRoute>
         ),
@@ -172,6 +191,7 @@ const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
+
       {
         path: "item-pdf/:id",
         element: (

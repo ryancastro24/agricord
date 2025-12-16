@@ -66,6 +66,7 @@ type ScannedItem = {
   picture?: string;
   notFound?: boolean;
   quantity?: number;
+  inventory_quantity?: number;
 };
 
 // 🧾 Loader — fetch farmer by ID
@@ -120,8 +121,11 @@ const ScanFarmer = () => {
   const [scanResult, setScanResult] = useState<string>("");
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
   const [isGoodsDialogOpen, setIsGoodsDialogOpen] = useState(false);
-  const [lastScanned, setLastScanned] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+
+  // const [lastScanned, setLastScanned] = useState<string | null>(null);
   const navigate = useNavigate();
+  const [allItems, setAllItems] = useState<ScannedItem[]>([]);
 
   const loaderData = useLoaderData() as {
     farmer: Farmer | null;
@@ -135,46 +139,65 @@ const ScanFarmer = () => {
   const farmer = loaderData?.farmer;
 
   // 🔍 Scan goods QR codes
-  const handleGoodsScan = async (results: any) => {
-    if (results && results.length > 0) {
-      const value = results[0].rawValue;
+  // const handleGoodsScan = async (results: any) => {
+  //   if (results && results.length > 0) {
+  //     const value = results[0].rawValue;
 
-      // Prevent duplicate scan in 1 second
-      if (lastScanned === value) return;
-      setLastScanned(value);
-      setTimeout(() => setLastScanned(null), 1000);
+  //     // Prevent duplicate scan in 1 second
+  //     if (lastScanned === value) return;
+  //     setLastScanned(value);
+  //     setTimeout(() => setLastScanned(null), 1000);
 
-      // Prevent duplicates
-      if (scannedItems.some((item) => item.barcode === value)) {
-        alert(`⚠️ Item with barcode ${value} already scanned!`);
-        return;
-      }
+  //     // Prevent duplicates
+  //     if (scannedItems.some((item) => item.barcode === value)) {
+  //       alert(`⚠️ Item with barcode ${value} already scanned!`);
+  //       return;
+  //     }
 
-      await fetchItem(value);
-    }
-  };
+  //     await fetchItem(value);
+  //   }
+  // };
 
-  // 🔎 Fetch item by barcode
-  const fetchItem = async (barcode: string) => {
-    const { data: item, error } = await supabase
+  const fetchAllItems = async () => {
+    const { data, error } = await supabase
       .from("items")
-      .select("id, barcode, name, description, price, picture")
-      .eq("barcode", barcode)
-      .maybeSingle();
+      .select("id, barcode, name, description, price, picture, quantity");
 
     if (error) {
-      console.error("Error fetching item:", error.message);
-      alert("❌ Error checking item. Please try again.");
+      console.error("Error fetching items:", error.message);
       return;
     }
 
-    if (!item) {
-      alert(`🚫 Item with barcode ${barcode} not found!`);
-      return;
-    }
-
-    setScannedItems((prev) => [...prev, { ...item, quantity: 1 }]);
+    setAllItems(
+      data.map((item) => ({
+        ...item,
+        quantity: 1,
+        inventory_quantity: item.quantity, // 👈 stock
+      }))
+    );
   };
+
+  // // 🔎 Fetch item by barcode
+  // const fetchItem = async (barcode: string) => {
+  //   const { data: item, error } = await supabase
+  //     .from("items")
+  //     .select("id, barcode, name, description, price, picture")
+  //     .eq("barcode", barcode)
+  //     .maybeSingle();
+
+  //   if (error) {
+  //     console.error("Error fetching item:", error.message);
+  //     alert("❌ Error checking item. Please try again.");
+  //     return;
+  //   }
+
+  //   if (!item) {
+  //     alert(`🚫 Item with barcode ${barcode} not found!`);
+  //     return;
+  //   }
+
+  //   setScannedItems((prev) => [...prev, { ...item, quantity: 1 }]);
+  // };
 
   // 💾 Save transactions
   // 💾 Save transactions + deduct inventory
@@ -185,37 +208,40 @@ const ScanFarmer = () => {
     }
 
     if (scannedItems.length === 0) {
-      alert("⚠️ Please scan at least one item!");
+      alert("⚠️ Please add at least one item!");
       return;
     }
 
     try {
-      // 1️⃣ Get logged-in user
+      /* ---------------- 1️⃣ GET LOGGED-IN USER ---------------- */
       const { data: userData, error: userError } =
         await supabase.auth.getUser();
+
       if (userError || !userData?.user) {
-        alert("⚠️ Failed to identify logged-in user!");
         console.error("User fetch error:", userError);
+        alert("⚠️ Failed to identify logged-in user!");
         return;
       }
+
       const staff_id = userData.user.id;
 
-      // 2️⃣ Get farmer’s cluster
-      const { data: farmerCluster, error: clusterError } = await supabase
+      /* ---------------- 2️⃣ GET FARMER CLUSTER (SAFE) ---------------- */
+      const { data: farmerClusters, error: clusterError } = await supabase
         .from("farmer_clusters")
         .select("cluster_id")
-        .eq("farmer_id", farmer.id)
-        .single();
+        .eq("farmer_id", farmer.id);
 
       if (clusterError) throw clusterError;
-      if (!farmerCluster) {
+
+      if (!farmerClusters || farmerClusters.length === 0) {
         alert("⚠️ Farmer is not linked to any cluster!");
         return;
       }
 
-      const cluster_id = farmerCluster.cluster_id;
+      // 👉 Choose first cluster (or modify if you need multiple)
+      const cluster_id = farmerClusters[0].cluster_id;
 
-      // 3️⃣ Prepare transactions
+      /* ---------------- 3️⃣ PREPARE TRANSACTIONS ---------------- */
       const transactions = scannedItems.map((item) => ({
         farmer_id: farmer.id,
         staff_id,
@@ -223,26 +249,29 @@ const ScanFarmer = () => {
         quantity: item.quantity ?? 1,
       }));
 
-      // 4️⃣ Save to transactions table
+      /* ---------------- 4️⃣ INSERT TRANSACTIONS ---------------- */
       const { error: transactionError } = await supabase
         .from("transactions")
         .insert(transactions);
+
       if (transactionError) throw transactionError;
 
-      // 5️⃣ Deduct item quantities from inventory
+      /* ---------------- 5️⃣ DEDUCT INVENTORY ---------------- */
       for (const item of scannedItems) {
         const quantityToDeduct = item.quantity ?? 1;
 
-        // 🔹 Get current item quantity
         const { data: currentItem, error: fetchError } = await supabase
           .from("items")
           .select("quantity")
           .eq("id", item.id)
-          .single();
+          .maybeSingle();
 
         if (fetchError || !currentItem) {
-          console.error(`❌ Error fetching item ${item.name}`, fetchError);
-          continue; // skip to next item
+          console.error(
+            `❌ Failed to fetch inventory for ${item.name}`,
+            fetchError
+          );
+          continue;
         }
 
         const newQuantity = Math.max(
@@ -250,7 +279,6 @@ const ScanFarmer = () => {
           0
         );
 
-        // 🔹 Update item quantity
         const { error: updateError } = await supabase
           .from("items")
           .update({ quantity: newQuantity })
@@ -258,13 +286,13 @@ const ScanFarmer = () => {
 
         if (updateError) {
           console.error(
-            `❌ Error updating quantity for ${item.name}`,
+            `❌ Failed to update inventory for ${item.name}`,
             updateError
           );
         }
       }
 
-      // 6️⃣ Record attendance
+      /* ---------------- 6️⃣ RECORD ATTENDANCE ---------------- */
       const { error: attendanceError } = await supabase
         .from("attendance")
         .insert([
@@ -273,16 +301,24 @@ const ScanFarmer = () => {
             cluster_id,
           },
         ]);
+
       if (attendanceError) throw attendanceError;
 
+      /* ---------------- 7️⃣ CLEAN UP ---------------- */
       alert("✅ Transactions saved and inventory updated successfully!");
       setScannedItems([]);
       setIsGoodsDialogOpen(false);
     } catch (err: any) {
-      console.error("❌ Error saving transactions:", err.message);
+      console.error("❌ Error saving transactions:", err);
       alert("❌ Failed to save transactions. Check console for details.");
     }
   };
+
+  const filteredItems = allItems.filter((item) =>
+    `${item.name} ${item.description ?? ""}`
+      .toLowerCase()
+      .includes(search.toLowerCase())
+  );
 
   return (
     <div className="flex flex-col md:grid md:grid-cols-[350px_1fr] gap-4 p-4 h-full md:h-screen">
@@ -373,7 +409,10 @@ const ScanFarmer = () => {
                     <div className="mt-3">
                       <Dialog
                         open={isGoodsDialogOpen}
-                        onOpenChange={setIsGoodsDialogOpen}
+                        onOpenChange={(open) => {
+                          setIsGoodsDialogOpen(open);
+                          if (open) fetchAllItems();
+                        }}
                       >
                         <DialogTrigger asChild>
                           <Button className="w-full md:w-auto">
@@ -391,12 +430,112 @@ const ScanFarmer = () => {
                           <div className="flex flex-col md:grid md:grid-cols-[300px_1fr] gap-4 h-full">
                             {/* Left: Scanner */}
                             <div className="bg-slate-100 w-full h-[250px] md:h-[300px] rounded overflow-hidden">
-                              <Scanner
-                                onScan={handleGoodsScan}
-                                allowMultiple={true}
-                                onError={(error) => console.error(error)}
-                                constraints={{ facingMode: "environment" }}
-                              />
+                              <div className="flex flex-col h-full border rounded-md">
+                                {/* 🔍 SEARCH (STICKY) */}
+                                <div className="p-2 border-b bg-white sticky top-0 z-10">
+                                  <Input
+                                    placeholder="Search items..."
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                    className="h-9"
+                                  />
+                                </div>
+
+                                {/* 📦 SCROLLABLE LIST */}
+                                <ul className="flex-1 overflow-y-auto space-y-3 p-3">
+                                  {filteredItems.length === 0 ? (
+                                    <li className="text-sm text-gray-500 text-center">
+                                      No items found
+                                    </li>
+                                  ) : (
+                                    filteredItems.map((item) => {
+                                      const alreadyAdded = scannedItems.some(
+                                        (i) => i.id === item.id
+                                      );
+
+                                      return (
+                                        <li
+                                          key={item.id}
+                                          className="flex items-center justify-between gap-3 border-b pb-2"
+                                        >
+                                          {/* LEFT */}
+                                          <div className="flex items-center gap-3 min-w-0">
+                                            {item.picture && (
+                                              <img
+                                                src={item.picture}
+                                                alt={item.name}
+                                                className="w-14 h-14 object-cover rounded border"
+                                              />
+                                            )}
+
+                                            <div className="min-w-0">
+                                              <p className="font-semibold truncate">
+                                                {item.name}
+                                              </p>
+                                              <p className="text-xs text-gray-500 truncate">
+                                                {item.description}
+                                              </p>
+                                            </div>
+                                          </div>
+
+                                          {/* RIGHT */}
+                                          <div className="flex items-center gap-2">
+                                            <input
+                                              type="number"
+                                              min={1}
+                                              max={item.inventory_quantity}
+                                              value={item.quantity ?? 1}
+                                              onChange={(e) => {
+                                                const qty =
+                                                  parseInt(
+                                                    e.target.value,
+                                                    10
+                                                  ) || 1;
+
+                                                if (
+                                                  qty >
+                                                  (item.inventory_quantity ?? 0)
+                                                ) {
+                                                  alert(
+                                                    "⚠️ Not enough inventory available"
+                                                  );
+                                                  return;
+                                                }
+
+                                                setAllItems((prev) =>
+                                                  prev.map((p) =>
+                                                    p.id === item.id
+                                                      ? { ...p, quantity: qty }
+                                                      : p
+                                                  )
+                                                );
+                                              }}
+                                              className="w-14 border rounded p-1 text-center"
+                                            />
+
+                                            <Button
+                                              size="sm"
+                                              disabled={
+                                                alreadyAdded ||
+                                                (item.quantity ?? 1) >
+                                                  (item.inventory_quantity ?? 0)
+                                              }
+                                              onClick={() =>
+                                                setScannedItems((prev) => [
+                                                  ...prev,
+                                                  { ...item },
+                                                ])
+                                              }
+                                            >
+                                              {alreadyAdded ? "Added" : "Add"}
+                                            </Button>
+                                          </div>
+                                        </li>
+                                      );
+                                    })
+                                  )}
+                                </ul>
+                              </div>
                             </div>
 
                             {/* Right: Scanned Items */}

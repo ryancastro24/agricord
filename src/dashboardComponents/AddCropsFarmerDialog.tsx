@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +27,8 @@ const AddCropsFarmerDialog = ({ onSuccess }: any) => {
 
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [idImage, setIdImage] = useState<string | null>(null);
+  const [clusters, setClusters] = useState<any[]>([]);
+  const [selectedClusterId, setSelectedClusterId] = useState<string>("");
 
   const [newFarmer, setNewFarmer] = useState({
     id_number: "",
@@ -80,6 +82,19 @@ const AddCropsFarmerDialog = ({ onSuccess }: any) => {
       setIdImage(img || null);
     }
   };
+
+  useEffect(() => {
+    const fetchClusters = async () => {
+      const { data, error } = await supabase
+        .from("clusters")
+        .select("id, name")
+        .order("name", { ascending: true });
+
+      if (!error && data) setClusters(data);
+    };
+
+    fetchClusters();
+  }, []);
 
   // 📤 Upload helper
   const uploadImage = async (path: string, base64Img: string) => {
@@ -149,6 +164,19 @@ const AddCropsFarmerDialog = ({ onSuccess }: any) => {
         .select()
         .single();
 
+      if (selectedClusterId) {
+        const { error: clusterError } = await supabase
+          .from("farmer_clusters")
+          .insert([
+            {
+              farmer_id: insertedFarmer.id,
+              cluster_id: selectedClusterId,
+            },
+          ]);
+
+        if (clusterError) throw clusterError;
+      }
+
       if (insertError) throw insertError;
 
       const { error: profileError } = await supabase
@@ -165,6 +193,7 @@ const AddCropsFarmerDialog = ({ onSuccess }: any) => {
       }
 
       toast.success("✅ Farmer successfully added!");
+      setSelectedClusterId("");
       setOpen(false);
       setNewFarmer({
         id_number: "",
@@ -573,79 +602,115 @@ const AddCropsFarmerDialog = ({ onSuccess }: any) => {
           <TabsContent value="farm">
             <Card>
               <CardContent className="grid gap-3 py-4">
-                <div>
-                  <Label htmlFor="farmer_role">Farmer Role</Label>
-                  <select
-                    id="farmer_role"
-                    value={farmProfile.farmer_role}
-                    onChange={(e) =>
-                      setFarmProfile({
-                        ...farmProfile,
-                        farmer_role: e.target.value,
-                      })
-                    }
-                    className="border border-gray-300 rounded-md p-2 w-full"
-                  >
-                    <option value="">Select Farmer Role</option>
-                    <option value="farmer">Farmer</option>
-                    <option value="laborer">Laborer</option>
-                    <option value="fishing">Fishing</option>
-                    <option value="other">Other</option>
-                  </select>
+                <div className="grid grid-cols-2 gap-5">
+                  <div>
+                    <Label htmlFor="farmer_role">Farmer Role</Label>
+                    <select
+                      id="farmer_role"
+                      value={farmProfile.farmer_role}
+                      onChange={(e) =>
+                        setFarmProfile({
+                          ...farmProfile,
+                          farmer_role: e.target.value,
+                        })
+                      }
+                      className="border border-gray-300 rounded-md p-2 w-full"
+                    >
+                      <option value="">Select Farmer Role</option>
+                      <option value="farmer">Farmer</option>
+                      <option value="laborer">Laborer</option>
+                      <option value="fishing">Fishing</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <Label>Farmer Activity</Label>
+                    <Input
+                      value={farmProfile.farmer_activity}
+                      onChange={(e) =>
+                        setFarmProfile({
+                          ...farmProfile,
+                          farmer_activity: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
                 </div>
 
-                <Label>Farmer Activity</Label>
-                <Input
-                  value={farmProfile.farmer_activity}
-                  onChange={(e) =>
-                    setFarmProfile({
-                      ...farmProfile,
-                      farmer_activity: e.target.value,
-                    })
-                  }
-                />
-                <Label>Kind of Work</Label>
-                <Input
-                  value={farmProfile.kind_of_work}
-                  onChange={(e) =>
-                    setFarmProfile({
-                      ...farmProfile,
-                      kind_of_work: e.target.value,
-                    })
-                  }
-                />
-                <Label>Type of Fishing Activity</Label>
-                <Input
-                  value={farmProfile.type_of_fishing_activity}
-                  onChange={(e) =>
-                    setFarmProfile({
-                      ...farmProfile,
-                      type_of_fishing_activity: e.target.value,
-                    })
-                  }
-                />
-                <Label>Gross Annual Income (₱)</Label>
-                <Input
-                  type="number"
-                  value={farmProfile.gross_annual_income_last_year}
-                  onChange={(e) =>
-                    setFarmProfile({
-                      ...farmProfile,
-                      gross_annual_income_last_year: e.target.value,
-                    })
-                  }
-                />
-                <Label>Non-Gross Annual Income (₱)</Label>
-                <Input
-                  type="number"
-                  value={farmProfile.non_gross_annual_income_last_year}
-                  onChange={(e) =>
-                    setFarmProfile({
-                      ...farmProfile,
-                      non_gross_annual_income_last_year: e.target.value,
-                    })
-                  }
-                />
+                <div className="grid grid-cols-2 gap-5">
+                  <div className="flex flex-col gap-2">
+                    <Label>Kind of Work</Label>
+                    <Input
+                      value={farmProfile.kind_of_work}
+                      onChange={(e) =>
+                        setFarmProfile({
+                          ...farmProfile,
+                          kind_of_work: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Label>Type of Fishing Activity</Label>
+                    <Input
+                      value={farmProfile.type_of_fishing_activity}
+                      onChange={(e) =>
+                        setFarmProfile({
+                          ...farmProfile,
+                          type_of_fishing_activity: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-5">
+                  <div className="flex flex-col gap-2">
+                    <Label>Gross Annual Income (₱)</Label>
+                    <Input
+                      type="number"
+                      value={farmProfile.gross_annual_income_last_year}
+                      onChange={(e) =>
+                        setFarmProfile({
+                          ...farmProfile,
+                          gross_annual_income_last_year: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <Label>Non-Gross Annual Income (₱)</Label>
+                    <Input
+                      type="number"
+                      value={farmProfile.non_gross_annual_income_last_year}
+                      onChange={(e) =>
+                        setFarmProfile({
+                          ...farmProfile,
+                          non_gross_annual_income_last_year: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="cluster">Cluster</Label>
+                  <select
+                    id="cluster"
+                    value={selectedClusterId}
+                    onChange={(e) => setSelectedClusterId(e.target.value)}
+                    className="border border-gray-300 rounded-md p-2 w-full"
+                  >
+                    <option value="">Select Cluster</option>
+                    {clusters.map((cluster) => (
+                      <option key={cluster.id} value={cluster.id}>
+                        {cluster.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
