@@ -263,8 +263,36 @@ const Dashboard = () => {
             className="absolute inset-0 bg-black/40"
             onClick={() => setIsSidebarOpen(false)}
           />
-          <aside className="relative w-64 bg-white p-3 overflow-y-auto">
-            {renderMenu(true)}
+          <aside className="relative w-64 bg-white p-3 overflow-y-auto flex flex-col justify-between h-full">
+            <div>{renderMenu(true)}</div>
+            {/* Mobile Logout Button */}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  className="w-full mt-4 flex items-center justify-center gap-2"
+                  variant="secondary"
+                >
+                  <FiLogOut /> Logout
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Confirm Logout</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to log out?
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleLogout}
+                    className="bg-red-500 hover:bg-red-600"
+                  >
+                    Logout
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </aside>
         </div>
       )}
@@ -272,39 +300,60 @@ const Dashboard = () => {
       {/* MAIN */}
       <div className="flex-1 flex flex-col">
         <header className="h-12 border-b flex items-center justify-between px-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            onClick={() => setIsSidebarOpen(true)}
-          >
-            <Menu />
-          </Button>
+          {/* Left: Avatar + User Info (mobile only) */}
+          <div className="flex items-center gap-2 md:hidden">
+            <Avatar>
+              <AvatarImage src="https://github.com/shadcn.png" />
+              <AvatarFallback>CN</AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col text-sm">
+              <span className="font-bold truncate">
+                {data?.user?.user_metadata?.lastname}
+              </span>
+              <span className="capitalize text-xs">{role}</span>
+            </div>
+          </div>
 
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button size="icon" variant="secondary">
-                <FiLogOut />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Confirm Logout</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to log out?
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleLogout}
-                  className="bg-red-500 hover:bg-red-600"
-                >
-                  Logout
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          {/* Right: Burger button (mobile only) and Logout (desktop only) */}
+          <div className="flex items-center gap-2">
+            {/* Mobile burger button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              onClick={() => setIsSidebarOpen(true)}
+            >
+              <Menu />
+            </Button>
+
+            {/* Desktop Logout */}
+            <div className="hidden md:flex">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button size="icon" variant="secondary">
+                    <FiLogOut />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Confirm Logout</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to log out?
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleLogout}
+                      className="bg-red-500 hover:bg-red-600"
+                    >
+                      Logout
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </div>
         </header>
 
         <main className="flex-1 p-2 overflow-y-auto">
