@@ -30,6 +30,7 @@ interface Item {
   name: string;
   description?: string;
   type?: string;
+  quantity?: number;
 }
 
 interface ItemRequest {
@@ -49,6 +50,7 @@ interface ItemRequest {
 const AdminItemRequestApprovals = () => {
   const [requests, setRequests] = useState<ItemRequest[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
+  const [expandedRow, setExpandedRow] = useState<number | null>(null); // <-- added
 
   useEffect(() => {
     fetchRequests();
@@ -144,12 +146,35 @@ const AdminItemRequestApprovals = () => {
                 </TableCell>
 
                 <TableCell>
-                  <div className="flex flex-wrap gap-2">
-                    {req.requested_items?.map((item) => (
-                      <Badge key={item.id} variant="secondary">
-                        {item.name}
-                      </Badge>
-                    ))}
+                  <div className="flex flex-col gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setExpandedRow(expandedRow === req.id ? null : req.id)
+                      }
+                    >
+                      {expandedRow === req.id
+                        ? "Hide Items"
+                        : `View Items (${req.requested_items.length})`}
+                    </Button>
+
+                    {expandedRow === req.id && (
+                      <div className="mt-1 flex flex-col gap-1">
+                        {req.requested_items.map((item) => (
+                          <Badge
+                            key={item.id}
+                            variant="secondary"
+                            className="flex justify-between w-full"
+                          >
+                            <span>{item.name}</span>
+                            <span className="font-semibold">
+                              Qty: {item.quantity ?? 1}
+                            </span>
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </TableCell>
 
@@ -157,7 +182,7 @@ const AdminItemRequestApprovals = () => {
 
                 <TableCell className="text-right">
                   {req.is_approved === "pending" && (
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-end gap-2 flex-wrap">
                       {/* APPROVE */}
                       <AlertDialog>
                         <AlertDialogTrigger asChild>

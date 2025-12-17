@@ -16,14 +16,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
@@ -38,12 +30,12 @@ import {
 } from "@/components/ui/alert-dialog";
 
 /* ---------------- TYPES ---------------- */
-
 interface Item {
   id: number;
   name: string;
   description?: string;
   type?: string;
+  quantity?: number;
 }
 
 interface ItemRequest {
@@ -52,26 +44,20 @@ interface ItemRequest {
   user_id: string;
   requested_items: Item[];
   is_approved: string | null;
-  users: {
-    firstname: string;
-    lastname: string;
-  };
 }
 
 /* ---------------- COMPONENT ---------------- */
-
 const ChairmanRequest = () => {
   const [items, setItems] = useState<Item[]>([]);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [selectedItems, setSelectedItems] = useState<Item[]>([]);
-  const [open, setOpen] = useState<boolean>(false);
+  const [open, setOpen] = useState(false);
   const [requests, setRequests] = useState<ItemRequest[]>([]);
-  const [filter, setFilter] = useState<string>("all");
+  const [filterDate, setFilterDate] = useState<string>("");
+  const [expandedRow, setExpandedRow] = useState<number | null>(null);
+  const [editingRequestId, setEditingRequestId] = useState<number | null>(null);
 
   /* ---------------- FETCH ---------------- */
-
-  console.log("requests", requests);
-
   useEffect(() => {
     fetchItems();
     fetchRequests();
@@ -80,7 +66,7 @@ const ChairmanRequest = () => {
   const fetchItems = async () => {
     const { data, error } = await supabase
       .from("items")
-      .select("id, name, description, type");
+      .select("id, name, description, type, quantity");
 
     if (!error && data) setItems(data as Item[]);
   };
@@ -88,37 +74,17 @@ const ChairmanRequest = () => {
   const fetchRequests = async () => {
     const { data, error } = await supabase
       .from("item_requests")
-      .select(
-        `
-      id,
-      created_at,
-      requested_items,
-      is_approved,
-      user_id,
-      users (
-        id,
-        firstname, 
-        lastname
-      )
-    `
-      )
+      .select("id, created_at, requested_items, is_approved, user_id")
       .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error(error);
-      return;
-    }
-
-    setRequests(data as any);
+    if (!error && data) setRequests(data as ItemRequest[]);
   };
 
-  /* ---------------- ITEM PILLS ---------------- */
-
+  /* ---------------- ITEM HANDLERS ---------------- */
   const addItem = () => {
     if (!selectedItem) return;
     if (selectedItems.some((i) => i.id === selectedItem.id)) return;
-
-    setSelectedItems((prev) => [...prev, selectedItem]);
+    setSelectedItems((prev) => [...prev, { ...selectedItem, quantity: 1 }]);
     setSelectedItem(null);
   };
 
@@ -126,42 +92,75 @@ const ChairmanRequest = () => {
     setSelectedItems((prev) => prev.filter((i) => i.id !== id));
   };
 
+  const updateQuantity = (id: number, qty: number) => {
+    const item = items.find((i) => i.id === id);
+    if (!item) return;
+    const safeQty = Math.min(Math.max(qty, 1), item.quantity ?? 1);
+    setSelectedItems((prev) =>
+      prev.map((i) => (i.id === id ? { ...i, quantity: safeQty } : i))
+    );
+  };
+
   /* ---------------- SUBMIT ---------------- */
+  const resetDialog = () => {
+    setSelectedItems([]);
+    setSelectedItem(null);
+    setEditingRequestId(null);
+    setOpen(false);
+  };
 
   const submitRequest = async () => {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-
     if (!user || selectedItems.length === 0) return;
 
-    const { error } = await supabase.from("item_requests").insert({
-      user_id: user.id,
-      requested_items: selectedItems,
-    });
+    for (const item of selectedItems) {
+      const inventoryItem = items.find((i) => i.id === item.id);
+      if (
+        !inventoryItem ||
+        (inventoryItem.quantity ?? 0) < (item.quantity ?? 1)
+      ) {
+        alert(`Not enough stock for ${item.name}`);
+        return;
+      }
+    }
 
-    if (!error) {
-      setSelectedItems([]);
-      setOpen(false);
-      fetchRequests();
+    if (editingRequestId) {
+      const { error } = await supabase
+        .from("item_requests")
+        .update({ requested_items: selectedItems })
+        .eq("id", editingRequestId)
+        .eq("is_approved", "pending");
+
+      if (!error) {
+        resetDialog();
+        fetchRequests();
+      }
+    } else {
+      const { error } = await supabase.from("item_requests").insert({
+        user_id: user.id,
+        requested_items: selectedItems,
+      });
+
+      if (!error) {
+        resetDialog();
+        fetchRequests();
+      }
     }
   };
 
   /* ---------------- CANCEL ---------------- */
-
   const cancelRequest = async (id: number) => {
     const { error } = await supabase
       .from("item_requests")
       .delete()
       .eq("id", id);
 
-    if (!error) {
-      fetchRequests();
-    }
+    if (!error) fetchRequests();
   };
 
   /* ---------------- STATUS ---------------- */
-
   const getStatusBadge = (status: string | null) => {
     if (status === "pending") return <Badge variant="secondary">Pending</Badge>;
     if (status === "approved")
@@ -169,104 +168,177 @@ const ChairmanRequest = () => {
     return <Badge variant="destructive">Rejected</Badge>;
   };
 
-  /* ---------------- FILTER ---------------- */
-
-  const filteredRequests = requests.filter((r) =>
-    filter === "all" ? true : r.user_id === filter
-  );
+  /* ---------------- FILTERED REQUESTS ---------------- */
+  const filteredRequests = requests.filter((r) => {
+    if (!filterDate) return true;
+    const requestDate = new Date(r.created_at).toISOString().split("T")[0];
+    return requestDate === filterDate;
+  });
 
   return (
     <Card className="shadow-md">
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 flex-wrap">
         <CardTitle className="text-xl">Item Requests</CardTitle>
-        <Button onClick={() => setOpen(true)}>Request Items</Button>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+          <input
+            type="date"
+            className="border rounded px-2 py-1"
+            value={filterDate}
+            onChange={(e) => setFilterDate(e.target.value)}
+          />
+          <Button onClick={() => setOpen(true)}>Request Items</Button>
+        </div>
       </CardHeader>
 
       <CardContent>
-        {/* FILTER */}
-        <div className="mb-4 max-w-xs">
-          <Select onValueChange={setFilter} defaultValue="all">
-            <SelectTrigger>
-              <SelectValue placeholder="Filter by user" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              {[...new Set(requests.map((r) => r.user_id))].map((u) => (
-                <SelectItem key={u} value={u}>
-                  {u}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* TABLE */}
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date Requested</TableHead>
-
-              <TableHead>Requested Items</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredRequests.map((req) => (
-              <TableRow key={req.id}>
-                <TableCell>
-                  {new Date(req.created_at).toLocaleString()}
-                </TableCell>
-
-                <TableCell>
-                  <div className="flex flex-wrap gap-2">
-                    {req.requested_items?.map((i) => (
-                      <Badge key={i.id} variant="secondary">
-                        {i.name}
-                      </Badge>
-                    ))}
-                  </div>
-                </TableCell>
-
-                <TableCell>{getStatusBadge(req.is_approved)}</TableCell>
-
-                <TableCell>
-                  {req.is_approved === "pending" && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm">
-                          Cancel
-                        </Button>
-                      </AlertDialogTrigger>
-
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>
-                            Cancel this request?
-                          </AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This action cannot be undone. The item request will
-                            be permanently deleted.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Back</AlertDialogCancel>
-                          <AlertDialogAction
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            onClick={() => cancelRequest(req.id)}
+        <div className="overflow-x-auto w-full">
+          <table className="w-full min-w-[300px] border-collapse border border-gray-200 text-sm">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="border p-2 text-left">Date</th>
+                <th className="border p-2 text-left">Items</th>
+                <th className="hidden sm:table-cell border p-2 text-left">
+                  Status
+                </th>
+                <th className="hidden sm:table-cell border p-2 text-left">
+                  Action
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredRequests.map((req) => (
+                <tr key={req.id} className="border-b">
+                  <td className="border p-2 break-words">
+                    {new Date(req.created_at).toLocaleString()}
+                  </td>
+                  <td className="border p-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setExpandedRow(expandedRow === req.id ? null : req.id)
+                      }
+                    >
+                      {expandedRow === req.id
+                        ? "Hide Items"
+                        : `View Items (${req.requested_items.length})`}
+                    </Button>
+                    {expandedRow === req.id && (
+                      <div className="mt-2 space-y-1">
+                        {req.requested_items.map((i) => (
+                          <div
+                            key={i.id}
+                            className="flex justify-between border rounded p-2 text-sm"
                           >
-                            Yes, Cancel Request
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                            <span>{i.name}</span>
+                            <span className="font-semibold">
+                              Qty: {i.quantity ?? 1}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </td>
+                  <td className="hidden sm:table-cell border p-2">
+                    {getStatusBadge(req.is_approved)}
+                  </td>
+                  <td className="hidden sm:table-cell border p-2">
+                    {req.is_approved === "pending" && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedItems(req.requested_items);
+                            setEditingRequestId(req.id);
+                            setOpen(true);
+                          }}
+                        >
+                          Edit
+                        </Button>
+
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="sm">
+                              Cancel
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                Cancel this request?
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Back</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-destructive"
+                                onClick={() => cancelRequest(req.id)}
+                              >
+                                Yes, Cancel
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </>
+                    )}
+                  </td>
+
+                  {/* Mobile "More" Button */}
+                  <td className="sm:hidden border p-2">
+                    <div className="flex flex-col gap-1">
+                      <span>{getStatusBadge(req.is_approved)}</span>
+                      {req.is_approved === "pending" && (
+                        <div className="flex gap-1 flex-wrap">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedItems(req.requested_items);
+                              setEditingRequestId(req.id);
+                              setOpen(true);
+                            }}
+                          >
+                            Edit
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="destructive" size="sm">
+                                Cancel
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                  Cancel this request?
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Back</AlertDialogCancel>
+                                <AlertDialogAction
+                                  className="bg-destructive"
+                                  onClick={() => cancelRequest(req.id)}
+                                >
+                                  Yes, Cancel
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </CardContent>
 
       {/* DIALOG */}
@@ -291,7 +363,7 @@ const ChairmanRequest = () => {
               <SelectContent>
                 {items.map((item) => (
                   <SelectItem key={item.id} value={item.id.toString()}>
-                    {item.name}
+                    {item.name} (Stock: {item.quantity ?? 0})
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -301,15 +373,39 @@ const ChairmanRequest = () => {
               Add Item
             </Button>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="space-y-2">
               {selectedItems.map((item) => (
-                <Badge
+                <div
                   key={item.id}
-                  className="cursor-pointer"
-                  onClick={() => removeItem(item.id)}
+                  className="flex flex-col sm:flex-row justify-between items-start sm:items-center border rounded p-2 gap-2"
                 >
-                  {item.name} ✕
-                </Badge>
+                  <div>
+                    <p className="font-medium">{item.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Available:{" "}
+                      {items.find((i) => i.id === item.id)?.quantity ?? 0}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={1}
+                      value={item.quantity ?? 1}
+                      onChange={(e) =>
+                        updateQuantity(item.id, Number(e.target.value))
+                      }
+                      className="w-16 border rounded px-2 py-1 text-center"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeItem(item.id)}
+                    >
+                      ✕
+                    </Button>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
