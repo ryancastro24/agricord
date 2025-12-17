@@ -126,7 +126,7 @@ const Dashboard = () => {
           to: "/dashboard/admin_item_request_approvals",
           icon: <LuFileCheck2 size={20} />,
           label: "Requested Items",
-          roles: ["admin"],
+          roles: ["admin", "staff"],
         },
         {
           to: "/dashboard/chairman_item_return",
