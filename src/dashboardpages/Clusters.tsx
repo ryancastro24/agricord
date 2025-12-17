@@ -544,11 +544,13 @@ const Clusters = () => {
       </Dialog>
 
       {/* 🆕 Edit Cluster Dialog */}
+      {/* 🆕 Edit Cluster Dialog */}
       <Dialog open={openEditDialog} onOpenChange={setOpenEditDialog}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Edit Cluster</DialogTitle>
           </DialogHeader>
+
           <div className="space-y-4 mt-2">
             <Input
               placeholder="Cluster Name"
@@ -560,22 +562,86 @@ const Clusters = () => {
                 })
               }
             />
-            <Input
-              placeholder="Barangay"
-              value={editCluster?.barangay || ""}
-              onChange={(e) =>
-                setEditCluster({
-                  ...(editCluster as Cluster),
-                  barangay: e.target.value,
-                })
-              }
-            />
 
+            {/* Barangay selection */}
+            <div className="relative">
+              {/* Display selected barangays */}
+              <div className="flex flex-wrap gap-2 mb-2">
+                {editCluster?.barangay?.map((b: string) => (
+                  <div
+                    key={b}
+                    className="inline-flex items-center bg-green-300 rounded-full px-3 py-1 text-sm"
+                  >
+                    <span className="mr-2">{b}</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setEditCluster((prev) => ({
+                          ...(prev as Cluster),
+                          barangay: (prev?.barangay as string[]).filter(
+                            (item) => item !== b
+                          ),
+                        }))
+                      }
+                      className="h-5 w-5 flex items-center justify-center rounded-full bg-green-500 text-white"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Search Input */}
+              <Input
+                placeholder="Search Barangay..."
+                value={chairmanSearch}
+                onChange={(e) => setChairmanSearch(e.target.value)}
+              />
+
+              {/* Filtered barangays dropdown */}
+              {chairmanSearch && (
+                <ul className="absolute z-10 w-full bg-white border rounded-md max-h-40 overflow-y-auto mt-1 shadow-md">
+                  {barangaysData
+                    .filter(
+                      (b) =>
+                        b
+                          .toLowerCase()
+                          .includes(chairmanSearch.toLowerCase()) &&
+                        !(editCluster?.barangay || []).includes(b)
+                    )
+                    .map((b) => (
+                      <li
+                        key={b}
+                        className="px-3 py-2 hover:bg-green-100 cursor-pointer"
+                        onClick={() => {
+                          setEditCluster((prev) => ({
+                            ...(prev as Cluster),
+                            barangay: [...(prev?.barangay || []), b],
+                          }));
+                          setChairmanSearch("");
+                        }}
+                      >
+                        {b}
+                      </li>
+                    ))}
+                  {barangaysData.filter(
+                    (b) =>
+                      b.toLowerCase().includes(chairmanSearch.toLowerCase()) &&
+                      !(editCluster?.barangay || []).includes(b)
+                  ).length === 0 && (
+                    <li className="px-3 py-2 text-gray-500">
+                      No barangay found
+                    </li>
+                  )}
+                </ul>
+              )}
+            </div>
+
+            {/* Chairman selection */}
             <Select
               value={editCluster?.chairman_id || ""}
               onValueChange={(value) => {
                 const selected = usersRes.find((u: any) => u.auth_id === value);
-
                 setEditCluster((prev: any) => ({
                   ...prev,
                   chairman_id: value,
@@ -611,6 +677,7 @@ const Clusters = () => {
               </SelectContent>
             </Select>
 
+            {/* Category */}
             <Select
               value={editCluster?.category || ""}
               onValueChange={(val) =>
@@ -632,6 +699,7 @@ const Clusters = () => {
               </SelectContent>
             </Select>
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenEditDialog(false)}>
               Cancel
